@@ -1,0 +1,7 @@
+# .osu files dir path (without last '/')
+osu_files_dir = ""
+
+
+[server]
+host = "127.0.0.1"
+port = 8088
