@@ -9,3 +9,5 @@ pub use osu_api::*;
 
 mod server;
 pub use server::PPserver;
+
+pub mod calculator;

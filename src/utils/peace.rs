@@ -441,10 +441,4 @@ pub fn build_s(len: usize) -> String {
     s
 }
 
-#[inline(always)]
-pub fn safe_file_name(mut s: String) -> String {
-    for i in r#":\*></?"|"#.chars() {
-        s = s.replace(i, "");
-    }
-    s
-}
+
