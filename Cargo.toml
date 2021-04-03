@@ -7,6 +7,20 @@ license = "MIT"
 repository = "https://github.com/pure-peace/pp-server"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+
+peace = [
+    'chrono',
+    'deadpool-postgres',
+    'deadpool-redis',
+    'field_names',
+    'postgres-types',
+    'serde_str',
+    'tokio-pg-mapper',
+    'tokio-pg-mapper-derive',
+    'tokio-postgres',
+]
 
 [dependencies]
 actix-cors = "0.5.4"
@@ -19,12 +33,25 @@ config = "0.10.1"
 dotenv = "0.15.0"
 env_logger = "0.8.3"
 hashbrown = "0.9.1"
+indicatif = "0.15.0"
 log = "0.4.14"
+md-5 = "0.9.1"
 peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
 prometheus = { version = "0.11.0", features = ["process"] }
 reqwest = { version = "0.11.1", features = ["rustls-tls", "json"], default-features = false }
 serde = { version = "1.0.124", features = ["derive"] }
 serde_json = "1.0.64"
+
+# Feature peace
+chrono = { version = "0.4.19", optional = true }
+deadpool-postgres = { version = "0.5.6", optional = true }
+deadpool-redis = { version = "0.6.1", optional = true }
+field_names = { version = "0.1.1", optional = true }
+postgres-types = { version = "0.1.2", features = ["derive", "with-chrono-0_4", "with-serde_json-1"], optional = true }
+serde_str = { version = "0.1.0", optional = true }
+tokio-pg-mapper = { version = "0.1.8", optional = true }
+tokio-pg-mapper-derive = { version = "0.1.5", optional = true }
+tokio-postgres = { version = "0.5.5", features = ["with-chrono-0_4", "with-serde_json-1"], optional = true }
 
 
 # link-time-optimization

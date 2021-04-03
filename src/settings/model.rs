@@ -1,20 +1,20 @@
-use colored::Colorize;
-use config::{Config, ConfigError, File};
-use dotenv::dotenv;
-use serde::Deserialize;
 use std::env;
 
 use crate::constants::BANNER;
+use crate::utils;
+use colored::Colorize;
+use dotenv::dotenv;
+use serde::Deserialize;
 
 #[derive(Debug, Clone)]
 pub struct LocalConfig {
     pub env: String,
-    pub cfg: Config,
+    pub cfg: config::Config,
     pub data: Settings,
 }
 
 impl LocalConfig {
-    pub fn new() -> Result<Self, ConfigError> {
+    pub fn new() -> Result<Self, config::ConfigError> {
         // Print banner
         println!("{}", BANNER.red());
 
@@ -23,9 +23,7 @@ impl LocalConfig {
         let env = Settings::load_env();
         let cfg = Settings::load_settings(env.clone())?;
         let data: Settings = cfg.clone().try_into()?;
-        if data.osu_files_dir == "" {
-            error!("Please add .osu files dir in pp-server-config!!!");
-        };
+        utils::checking_osu_dir(&data);
         println!(
             "{}",
             "> Configuration loaded successfully!\n".bold().green()
@@ -34,6 +32,7 @@ impl LocalConfig {
         Ok(LocalConfig { env, cfg, data })
     }
 
+    #[inline(always)]
     pub fn init() -> Self {
         let cfg = LocalConfig::new();
         if let Err(err) = cfg {
@@ -49,6 +48,7 @@ pub struct Settings {
     pub env: String,
     pub debug: bool,
     pub osu_files_dir: String,
+    pub recalculate_osu_file_md5: bool,
     pub server: Server,
     pub logger: Logger,
     #[serde(rename = "prometheus")]
@@ -73,18 +73,18 @@ impl Settings {
         env
     }
 
-    pub fn load_settings(env: String) -> Result<Config, ConfigError> {
-        let mut cfg = Config::new();
+    pub fn load_settings(env: String) -> Result<config::Config, config::ConfigError> {
+        let mut cfg = config::Config::new();
 
         // Set the env
         cfg.set("env", env.clone())?;
         println!("{}", "> Loading user settings...".green());
 
         // The "default" configuration file
-        cfg.merge(File::with_name("pp-server-config/default"))?;
+        cfg.merge(config::File::with_name("pp-server-config/default"))?;
 
         // Add in the current environment file
-        cfg.merge(File::with_name(&format!("pp-server-config/{}", env)).required(true))
+        cfg.merge(config::File::with_name(&format!("pp-server-config/{}", env)).required(true))
             .expect(
                 "Please make sure that the configuration file of the current environment exists",
             );
