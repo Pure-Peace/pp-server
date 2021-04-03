@@ -1,9 +1,9 @@
 # .osu files dir path (without last '/')
 # use '\\' instead of '\' in windows
-osu_files_dir = ".data/beatmaps"
+osu_files_dir = "example_data/beatmaps"
 
 # if true, pp server will recalculate all .osu files in dir before started.
-recalculate_osu_file_md5 = true
+recalculate_osu_file_md5 = false
 
 [server]
 host = "127.0.0.1"
