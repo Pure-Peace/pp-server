@@ -97,21 +97,27 @@ pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
         println!("{}", "WARNING: Your will preload > 9000 beatmaps, loading them into memory may cause insufficient memory or even system crashes.".red())
     };
     println!("\n  Preloading .osu files into Memory...");
-    let bar = progress_bar(total as u64);
+    let bar = progress_bar(max_load as u64);
     let mut success = 0;
     let start = Instant::now();
     let mut beatmap_cache = caches.beatmap_cache.write().await;
     for entry in entries {
         bar.inc(1);
         if let Some(entry) = entry {
-            if let Ok(file_name) = entry.file_name().into_string() {
-                let md5 = file_name.replace(".osu", "");
-                if let Ok(file) = AsyncFile::open(entry.path()).await {
-                    match Beatmap::parse(file).await {
-                        Ok(b) => beatmap_cache.insert(md5.to_string(), BeatmapCache::new(b)),
-                        Err(_e) => continue,
-                    };
-                };
+            {
+                if let Ok(file_name) = entry.file_name().into_string() {
+                    let md5 = file_name.replace(".osu", "");
+                    {
+                        if let Ok(file) = AsyncFile::open(entry.path()).await {
+                            match Beatmap::parse(file).await {
+                                Ok(b) => {
+                                    beatmap_cache.insert(md5.to_string(), BeatmapCache::new(b))
+                                }
+                                Err(_e) => continue,
+                            };
+                        };
+                    }
+                }
             }
             success += 1;
             if success >= max_load {
@@ -121,7 +127,7 @@ pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
     }
     bar.finish();
     println!(
-        "{}\n",
+        "\n{}\n",
         format!(
             "> Beatmaps has preloaded, \n> Success: {}, Total: {}, MaxLoad: {}; \n> time spent: {:?}",
             success,
