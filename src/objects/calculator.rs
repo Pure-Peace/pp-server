@@ -1,4 +1,4 @@
-use crate::caches::Caches;
+use crate::caches::{BeatmapCache, Caches};
 use actix_web::web::Data;
 use async_std::fs::File;
 use peace_performance::{AnyPP, Beatmap, FruitsPP, ManiaPP, OsuPP, PpResult, TaikoPP};
@@ -105,7 +105,8 @@ pub async fn get_beatmap_from_local(
     caches: &Data<Caches>,
 ) -> Result<Data<Beatmap>, GetBeatmapError> {
     // Try get from beatmap cache
-    if let Some(b) = caches.beatmap_cache.read().await.get(md5).cloned() {
+    if let Some(c) = caches.beatmap_cache.read().await.get(md5) {
+        let b = c.get();
         debug!("[calculate_pp] Get beatmap '{}' from cache.", md5);
         return Ok(b);
     };
@@ -125,12 +126,9 @@ pub async fn get_beatmap_from_local(
     // Try parse .osu file
     match Beatmap::parse(file).await {
         Ok(b) => {
-            let b = Data::new(b.clone());
-            caches
-                .beatmap_cache
-                .write()
-                .await
-                .insert(md5.to_string(), b.clone());
+            let c = BeatmapCache::new(b);
+            let b = c.get();
+            caches.cache_beatmap(md5.to_string(), c).await;
             Ok(b)
         }
         Err(err) => {

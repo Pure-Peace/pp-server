@@ -50,6 +50,10 @@ pub struct Settings {
     pub osu_files_dir: String,
     pub recalculate_osu_file_md5: bool,
     pub preload_osu_files: bool,
+    pub beatmap_cache_max: i32,
+    pub beatmap_cache_timeout: u64,
+    pub auto_clean_cache: bool,
+    pub auto_clean_interval: u64,
     pub server: Server,
     pub logger: Logger,
     #[serde(rename = "prometheus")]

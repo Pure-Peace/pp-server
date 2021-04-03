@@ -1,3 +1,4 @@
+use crate::caches::BeatmapCache;
 use actix_web::web::Data;
 use async_std::fs::File as AsyncFile;
 use colored::Colorize;
@@ -88,12 +89,14 @@ pub fn listing_osu_files(osu_files_dir: &String) -> (Vec<Option<fs::DirEntry>>, 
 }
 
 #[inline(always)]
-pub async fn preload_osu_files(osu_files_dir: &String, caches: &Data<Caches>) {
-    let (entries, total) = listing_osu_files(&osu_files_dir);
-    if total > 20000 {
-        println!("{}", "WARNING: Your have > 20000 beatmaps, loading them into memory may cause insufficient memory or even system crashes.".red())
+pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
+    let osu_files_dir = &config.osu_files_dir;
+    let max_load = config.beatmap_cache_max;
+    let (entries, total) = listing_osu_files(osu_files_dir);
+    if total > 9000 && max_load > 9000 {
+        println!("{}", "WARNING: Your will preload > 9000 beatmaps, loading them into memory may cause insufficient memory or even system crashes.".red())
     };
-    println!("\n  Preloading all .osu files into Memory...");
+    println!("\n  Preloading .osu files into Memory...");
     let bar = progress_bar(total as u64);
     let mut success = 0;
     let start = Instant::now();
@@ -105,21 +108,25 @@ pub async fn preload_osu_files(osu_files_dir: &String, caches: &Data<Caches>) {
                 let md5 = file_name.replace(".osu", "");
                 if let Ok(file) = AsyncFile::open(entry.path()).await {
                     match Beatmap::parse(file).await {
-                        Ok(b) => beatmap_cache.insert(md5.to_string(), Data::new(b)),
+                        Ok(b) => beatmap_cache.insert(md5.to_string(), BeatmapCache::new(b)),
                         Err(_e) => continue,
                     };
                 };
             }
             success += 1;
+            if success > max_load {
+                break;
+            }
         }
     }
     bar.finish();
     println!(
         "{}\n",
         format!(
-            "> All beatmaps has preloaded, \n> Success / Total: {} / {}; \n> time spent: {:?}",
+            "> Beatmaps has preloaded, \n> Success / Total / MaxLoad: {} / {} / {}; \n> time spent: {:?}",
             success,
             total,
+            max_load,
             start.elapsed()
         )
         .bright_yellow()

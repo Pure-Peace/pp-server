@@ -1,7 +1,8 @@
 use actix_cors::Cors;
 use actix_web::{dev::Server, middleware::Logger, web::Data, App, HttpServer};
 use async_std::channel::{unbounded, Receiver, Sender};
-use std::time::Instant;
+use chrono::Local;
+use std::time::{Duration, Instant};
 
 use colored::Colorize;
 
@@ -36,7 +37,7 @@ impl PPserver {
         let (prometheus, counter) = Self::prom_init(&addr, sets);
         let (sender, receiver) = unbounded();
 
-        let caches = Data::new(Caches::new());
+        let caches = Data::new(Caches::new(local_config.data.clone()));
 
         Self {
             addr,
@@ -93,8 +94,30 @@ impl PPserver {
     pub async fn start(&mut self) -> std::io::Result<()> {
         // Should preload or not
         if self.local_config.data.preload_osu_files {
-            utils::preload_osu_files(&self.local_config.data.osu_files_dir, &self.caches).await;
+            utils::preload_osu_files(&self.local_config.data, &self.caches).await;
         };
+        // Auto clean
+        let interval = self.local_config.data.auto_clean_interval;
+        let timeout = self.local_config.data.beatmap_cache_timeout;
+        let caches = self.caches.clone();
+        async_std::task::spawn(async move {
+            async_std::task::sleep(Duration::from_secs(interval)).await;
+            let mut ready_to_clean = Vec::new();
+            let now = Local::now().timestamp();
+            let beatmap_cache = caches.beatmap_cache.read().await;
+            for (k, v) in beatmap_cache.iter() {
+                if now - v.time.timestamp() > timeout as i64 {
+                    ready_to_clean.push(k.clone());
+                }
+            }
+            if ready_to_clean.len() > 0 {
+                debug!("Timeout cache founded, will clean them...");
+                let mut beatmap_cache = caches.beatmap_cache.write().await;
+                for k in ready_to_clean {
+                    beatmap_cache.remove(&k);
+                }
+            }
+        });
         self.run_server().await;
         // Wait for stopped
         self.stopped().await

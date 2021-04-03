@@ -3,11 +3,19 @@
 osu_files_dir = ".data/beatmaps"
 
 # if true, pp server will recalculate all .osu files in dir before started.
-recalculate_osu_file_md5 = true
+recalculate_osu_file_md5 = false
 
 # if true, pp server will Load all .osu files at start;
-# WARING: May cause insufficient memory
-preload_osu_files = false
+# WARING: May cause insufficient memory if beatmap_cache_max > 20000
+preload_osu_files = true
+
+# max beatmap count in cache
+beatmap_cache_max = 200
+beatmap_cache_timeout = 3600
+
+# if true, will auto remove timeout beatmap cache each interval (seconds)
+auto_clean_cache = true
+auto_clean_interval = 300
 
 [server]
 host = "127.0.0.1"
