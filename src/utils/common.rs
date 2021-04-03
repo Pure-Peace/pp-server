@@ -5,7 +5,7 @@ use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use md5::{Digest, Md5};
 use peace_performance::Beatmap;
-use std::path::Path;
+use std::{cmp::min, path::Path};
 use std::{fs, io};
 use std::{
     fs::File,
@@ -97,7 +97,7 @@ pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
         println!("{}", "WARNING: Your will preload > 9000 beatmaps, loading them into memory may cause insufficient memory or even system crashes.".red())
     };
     println!("\n  Preloading .osu files into Memory...");
-    let bar = progress_bar(max_load as u64);
+    let bar = progress_bar(min(max_load, total as i32) as u64);
     let mut success = 0;
     let start = Instant::now();
     let mut beatmap_cache = caches.beatmap_cache.write().await;
