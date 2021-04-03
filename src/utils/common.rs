@@ -90,6 +90,9 @@ pub fn listing_osu_files(osu_files_dir: &String) -> (Vec<Option<fs::DirEntry>>, 
 #[inline(always)]
 pub async fn preload_osu_files(osu_files_dir: &String, caches: &Data<Caches>) {
     let (entries, total) = listing_osu_files(&osu_files_dir);
+    if total > 20000 {
+        println!("{}", "WARNING: Your have > 20000 beatmaps, loading them into memory may cause insufficient memory or even system crashes.".red())
+    };
     println!("\n  Preloading all .osu files into Memory...");
     let bar = progress_bar(total as u64);
     let mut success = 0;
