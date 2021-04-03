@@ -29,6 +29,7 @@ fn init_debug(cfg: &mut ServiceConfig) {
     use debug::*;
     cfg.service(index);
     cfg.service(server_stop);
+    cfg.service(clear_cache);
 }
 
 /// Routes for default
