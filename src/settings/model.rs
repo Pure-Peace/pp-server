@@ -49,6 +49,7 @@ pub struct Settings {
     pub debug: bool,
     pub osu_files_dir: String,
     pub recalculate_osu_file_md5: bool,
+    pub preload_osu_files: bool,
     pub server: Server,
     pub logger: Logger,
     #[serde(rename = "prometheus")]

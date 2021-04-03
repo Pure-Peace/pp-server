@@ -8,9 +8,9 @@ use colored::Colorize;
 use actix_web_prom::PrometheusMetrics;
 use prometheus::{opts, IntCounterVec};
 
-use crate::routes;
 use crate::settings::model::{LocalConfig, Settings};
 use crate::{caches::Caches, renders::MainPage};
+use crate::{routes, utils};
 
 pub struct PPserver {
     pub addr: String,
@@ -91,6 +91,10 @@ impl PPserver {
     }
 
     pub async fn start(&mut self) -> std::io::Result<()> {
+        // Should preload or not
+        if self.local_config.data.preload_osu_files {
+            utils::preload_osu_files(&self.local_config.data.osu_files_dir, &self.caches).await;
+        };
         self.run_server().await;
         // Wait for stopped
         self.stopped().await

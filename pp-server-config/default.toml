@@ -5,6 +5,9 @@ osu_files_dir = "example_data/beatmaps"
 # if true, pp server will recalculate all .osu files in dir before started.
 recalculate_osu_file_md5 = false
 
+# if true, pp server will Load all .osu files at start;
+preload_osu_files = true
+
 [server]
 host = "127.0.0.1"
 port = 8088

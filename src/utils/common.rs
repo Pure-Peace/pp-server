@@ -1,6 +1,9 @@
+use actix_web::web::Data;
+use async_std::fs::File as AsyncFile;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use md5::{Digest, Md5};
+use peace_performance::Beatmap;
 use std::path::Path;
 use std::{fs, io};
 use std::{
@@ -9,7 +12,7 @@ use std::{
     time::Instant,
 };
 
-use crate::settings::model::Settings;
+use crate::{caches::Caches, settings::model::Settings};
 
 #[inline(always)]
 pub fn safe_string(mut s: String) -> String {
@@ -56,27 +59,23 @@ pub fn calc_file_md5<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
 }
 
 #[inline(always)]
-pub fn recalculate_osu_file_md5(osu_files_dir: String) {
+pub fn progress_bar(total: u64) -> ProgressBar {
+    let bar = ProgressBar::new(total);
+    bar.set_style(ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{bar:40.green/white} ]{pos:>7}/{len:7} ({eta})").progress_chars("#>-"));
+    bar
+}
+
+#[inline(always)]
+pub fn listing_osu_files(osu_files_dir: &String) -> (Vec<Option<fs::DirEntry>>, usize) {
     println!(
         "{}",
         format!("\n> Listing .osu dir '{}' now...", osu_files_dir).bright_yellow()
     );
-    let mut renamed = 0;
-    let mut done = 0;
-    let mut dirs = 0;
-    let mut error = 0;
     let entries: Vec<Option<fs::DirEntry>> = fs::read_dir(osu_files_dir.clone())
         .unwrap()
         .map(|r| match check_is_osu_file(&r) {
             1 => Some(r.unwrap()),
-            2 => {
-                dirs += 1;
-                None
-            }
-            _ => {
-                error += 1;
-                None
-            }
+            _ => None,
         })
         .filter(|r| r.is_some())
         .collect();
@@ -85,11 +84,56 @@ pub fn recalculate_osu_file_md5(osu_files_dir: String) {
         "\n{}",
         format!("> Done, .osu file count: {}", total).bright_yellow()
     );
+    (entries, total)
+}
+
+#[inline(always)]
+pub async fn preload_osu_files(osu_files_dir: &String, caches: &Data<Caches>) {
+    let (entries, total) = listing_osu_files(&osu_files_dir);
+    println!("\n  Preloading all .osu files into Beatmap...");
+    let bar = progress_bar(total as u64);
+    let mut success = 0;
+    let start = Instant::now();
+    let mut beatmap_cache = caches.beatmap_cache.write().await;
+    for entry in entries {
+        bar.inc(1);
+        if let Some(entry) = entry {
+            if let Ok(file_name) = entry.file_name().into_string() {
+                let md5 = file_name.replace(".osu", "");
+                if let Ok(file) = AsyncFile::open(entry.path()).await {
+                    match Beatmap::parse(file).await {
+                        Ok(b) => beatmap_cache.insert(md5.to_string(), Data::new(b)),
+                        Err(_e) => continue,
+                    };
+                };
+            }
+            success += 1;
+        }
+    }
+    bar.finish();
+    println!(
+        "{}\n",
+        format!(
+            "> All beatmaps has preloaded, \n> Success / Total: {} / {}; \n> time spent: {:?}",
+            success,
+            total,
+            start.elapsed()
+        )
+        .bright_yellow()
+    )
+}
+
+#[inline(always)]
+pub fn recalculate_osu_file_md5(osu_files_dir: String) {
+    let mut renamed = 0;
+    let mut done = 0;
+    let mut error = 0;
+    let (entries, total) = listing_osu_files(&osu_files_dir);
     println!("\n  Recalculating MD5 file names...");
-    let bar = ProgressBar::new(total as u64);
-    bar.set_style(ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{bar:40.green/white} ]{pos:>7}/{len:7} ({eta})").progress_chars("#>-"));
+    let bar = progress_bar(total as u64);
     let start = Instant::now();
     for entry in entries {
+        bar.inc(1);
         if let Some(entry) = entry {
             let md5 = match calc_file_md5(entry.path()) {
                 Ok(md5) => md5,
@@ -104,19 +148,17 @@ pub fn recalculate_osu_file_md5(osu_files_dir: String) {
                 renamed += 1;
             }
             done += 1;
-            bar.inc(1);
         }
     }
     bar.finish();
     println!(
         "{}\n",
         format!(
-            "> Done, \n> Success / Done / Total: {} / {} / {}; \n> Errors / Dirs: {} / {}; \n> time spent: {:?}",
+            "> Done, \n> Success / Done / Total: {} / {} / {}; \n> Errors: {}; \n> time spent: {:?}",
             renamed,
             done,
             total,
             error,
-            dirs,
             start.elapsed()
         )
         .bright_yellow()
