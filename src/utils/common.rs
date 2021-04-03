@@ -90,7 +90,7 @@ pub fn listing_osu_files(osu_files_dir: &String) -> (Vec<Option<fs::DirEntry>>, 
 #[inline(always)]
 pub async fn preload_osu_files(osu_files_dir: &String, caches: &Data<Caches>) {
     let (entries, total) = listing_osu_files(&osu_files_dir);
-    println!("\n  Preloading all .osu files into Beatmap...");
+    println!("\n  Preloading all .osu files into Memory...");
     let bar = progress_bar(total as u64);
     let mut success = 0;
     let start = Instant::now();
