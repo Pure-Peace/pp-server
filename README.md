@@ -7,6 +7,8 @@ It is also the PP server of **[Peace](https://github.com/Pure-Peace/peace)**.
 ### Features
 
 - **Common**:
+  - **preload beatmaps**
+  - **calculate beatmap MD5**
   - **request beatmap from osu!api**
   - **pp calculate**:
     - osu!Standard
