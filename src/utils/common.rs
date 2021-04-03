@@ -114,7 +114,7 @@ pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
                 };
             }
             success += 1;
-            if success > max_load {
+            if success >= max_load {
                 break;
             }
         }
@@ -123,7 +123,7 @@ pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
     println!(
         "{}\n",
         format!(
-            "> Beatmaps has preloaded, \n> Success / Total / MaxLoad: {} / {} / {}; \n> time spent: {:?}",
+            "> Beatmaps has preloaded, \n> Success: {}, Total: {}, MaxLoad: {}; \n> time spent: {:?}",
             success,
             total,
             max_load,
