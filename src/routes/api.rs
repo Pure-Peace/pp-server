@@ -93,7 +93,10 @@ pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
             Some(b) => b,
             None => return failed(0, "cannot get beatmap from anyway"),
         };
-        debug!("[calculate_pp] without md5, but get success: {}({})", b.md5, b.id);
+        debug!(
+            "[calculate_pp] without md5, but get success: {}({})",
+            b.md5, b.id
+        );
         (b.md5, Some(b.id))
     } else {
         // Safe input string
@@ -140,6 +143,7 @@ pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
         .body(json!({
             "status": 1,
             "message": "done",
-            "pp": result.pp()
+            "pp": result.pp(),
+            "raw": result.raw()
         }))
 }
