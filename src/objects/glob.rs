@@ -1,9 +1,11 @@
 use actix_web::web::Data;
 #[cfg(feature = "peace")]
 use async_std::sync::RwLock;
+#[cfg(feature = "peace")]
+use crate::utils;
 
 use super::{Caches, OsuApi};
-use crate::{renders::MainPage, utils};
+use crate::{renders::MainPage};
 use crate::settings::model::LocalConfig;
 
 #[cfg(feature = "peace")]
