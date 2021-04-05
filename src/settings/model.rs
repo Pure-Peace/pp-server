@@ -45,6 +45,18 @@ impl LocalConfig {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
+    #[cfg(feature = "peace")]
+    pub postgres: deadpool_postgres::Config,
+    #[cfg(feature = "peace")]
+    pub redis: deadpool_redis::Config,
+    #[cfg(not(feature = "peace"))]
+    pub osu_api_keys: Vec<String>,
+
+    #[cfg(feature = "peace")]
+    pub check_pools_on_created: bool,
+    #[cfg(feature = "peace")]
+    pub check_db_version_on_created: bool,
+
     pub env: String,
     pub debug: bool,
     pub osu_files_dir: String,

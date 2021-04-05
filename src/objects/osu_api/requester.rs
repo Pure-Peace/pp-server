@@ -1,24 +1,40 @@
 use super::{client::OsuApiClient, depends::*, errors::ApiError};
+use async_std::io::Cursor;
+use bytes::Bytes;
+use colored::Colorize;
+use derivative::Derivative;
+use json::object;
+use md5::Digest;
+use peace_performance::Beatmap as PPbeatmap;
 
 const NOT_API_KEYS: &'static str = "[OsuApi] Api keys not added, could not send requests.";
 
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct OsuApi {
+    pub beatmap_downloader: OsuApiClient,
     pub api_clients: Vec<OsuApiClient>,
     pub delay: AtomicUsize,
     pub success_count: AtomicUsize,
     pub failed_count: AtomicUsize,
+    #[cfg(feature = "peace")]
     #[derivative(Debug = "ignore")]
     _bancho_config: Arc<RwLock<BanchoConfig>>,
 }
 
 impl OsuApi {
-    pub async fn new(bancho_config: &Arc<RwLock<BanchoConfig>>) -> Self {
+    pub async fn new(
+        #[cfg(not(feature = "peace"))] api_keys: &Vec<String>,
+        #[cfg(feature = "peace")] bancho_config: &Arc<RwLock<BanchoConfig>>,
+    ) -> Self {
+        #[cfg(feature = "peace")]
         let api_keys = &bancho_config.read().await.osu_api_keys;
 
         if api_keys.is_empty() {
-            warn!("[OsuApi] No osu! apikeys has been added, please add it to the bancho.config of the database! Otherwise, the osu!api request cannot be used.");
+            #[cfg(feature = "peace")]
+            println!("{}", "> [OsuApi] No osu! apikeys has been added, please add it to the bancho.config of the database! Otherwise, the osu!api request cannot be used.".red());
+            #[cfg(not(feature = "peace"))]
+            println!("{}", "> [OsuApi] No osu! apikeys has been added, please add it to the pp-server-config.osu_api_keys! Otherwise, the osu!api request cannot be used.".red());
         }
 
         let api_clients = api_keys
@@ -27,10 +43,12 @@ impl OsuApi {
             .collect();
 
         OsuApi {
+            beatmap_downloader: OsuApiClient::new(String::new()),
             api_clients,
             delay: AtomicUsize::new(0),
             success_count: AtomicUsize::new(0),
             failed_count: AtomicUsize::new(0),
+            #[cfg(feature = "peace")]
             _bancho_config: bancho_config.clone(),
         }
     }
@@ -47,6 +65,7 @@ impl OsuApi {
         self.delay.swap(delay, Ordering::SeqCst);
     }
 
+    #[cfg(feature = "peace")]
     pub async fn reload_clients(&mut self) {
         let new_keys = self._bancho_config.read().await.osu_api_keys.clone();
 
@@ -74,6 +93,37 @@ impl OsuApi {
                 self.api_clients.push(OsuApiClient::new(key));
             }
         }
+    }
+
+    #[inline(always)]
+    pub async fn get_pp_beatmap(&self, bid: i32) -> Result<(PPbeatmap, String, Bytes), ApiError> {
+        let resp = self
+            .beatmap_downloader
+            .requester
+            .get(format!("https://old.ppy.sh/osu/{}", bid).as_str())
+            .send()
+            .await;
+        if resp.is_err() {
+            return Err(ApiError::RequestError);
+        };
+
+        let bytes = resp.unwrap().bytes().await;
+        if bytes.is_err() {
+            return Err(ApiError::ParseError);
+        };
+
+        let bytes = bytes.unwrap();
+        let b = match PPbeatmap::parse(Cursor::new(bytes.clone())).await {
+            Ok(b) => b,
+            Err(err) => {
+                error!(
+                    "[OsuApi] Failed to parse .osu files from requests, err: {:?}",
+                    err
+                );
+                return Err(ApiError::ParseError);
+            }
+        };
+        Ok((b, format!("{:x}", md5::Md5::digest(&bytes)), bytes))
     }
 
     #[inline(always)]

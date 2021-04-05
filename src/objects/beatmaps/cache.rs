@@ -26,6 +26,7 @@ impl BeatmapCache {
         self.beatmap.is_none()
     }
 
+    #[cfg(feature = "peace")]
     #[inline(always)]
     pub async fn from_database<T: Any + Display>(
         key: &T,
@@ -51,13 +52,18 @@ impl BeatmapCache {
         method: &GetBeatmapMethod,
         file_name: Option<&String>,
         osu_api: &Data<RwLock<OsuApi>>,
-        database: &Database,
+        #[cfg(feature = "peace")] database: &Database,
     ) -> Result<Self, ApiError> {
-        Ok(
-            BeatmapFromApi::from_osu_api(key, method, file_name, osu_api, database)
-                .await?
-                .convert_to_beatmap_cache(),
+        Ok(BeatmapFromApi::from_osu_api(
+            key,
+            method,
+            file_name,
+            osu_api,
+            #[cfg(feature = "peace")]
+            database,
         )
+        .await?
+        .convert_to_beatmap_cache())
     }
 
     #[inline(always)]

@@ -1,8 +1,16 @@
 use super::{depends::*, BeatmapFromApi, GetBeatmapMethod};
-use crate::{constants::RankStatusInServer, objects::errors::ApiError, utils};
+use crate::{
+    constants::RankStatusInServer,
+    objects::{errors::ApiError, glob::Glob},
+    utils,
+};
 
-#[pg_mapper(table = "beatmaps.maps")]
-#[derive(Debug, FieldNames, Clone, FromSql, ToSql, PostgresMapper)]
+#[cfg_attr(
+    feature = "peace",
+    pg_mapper(table = "beatmaps.maps"),
+    derive(FromSql, ToSql, PostgresMapper)
+)]
+#[derive(Debug, FieldNames, Clone)]
 pub struct Beatmap {
     pub server: String,
     pub id: i32,
@@ -68,7 +76,7 @@ impl Beatmap {
     /// if success to get a map from osu!api, will auto cache it to local and database.
     /// if failed to get a map from osu!api, will auto cache it to local as "not submit".
     ///
-    /// cache expires seconds can be setted in database (bancho.config.timeout_beatmap_cache),
+    /// cache expires seconds can be setted in database (glob.config.timeout_beatmap_cache),
     /// default is 3600s (one hour)
     ///
     /// TODO: add bid support?
@@ -76,57 +84,92 @@ impl Beatmap {
     ///
     pub async fn get(
         md5: Option<&String>,
+        bid: Option<i32>,
         sid: Option<i32>,
         file_name: Option<&String>,
-        bancho: &Bancho,
-        database: &Database,
-        cache: &Caches,
+        glob: &Glob,
         try_from_cache: bool,
     ) -> Option<Self> {
-        let expire = bancho.config.read().await.timeout_beatmap_cache;
-        let mut backup_beatmap = None;
-        // MD5 Available
-        if let Some(md5) = md5 {
-            // Try get beatmap from local cache or database
-            if try_from_cache {
-                // Get from local cache
-                if let Some(c) = cache.get_beatmap(md5).await {
-                    if !c.is_expired(expire) {
-                        info!("[Beatmap] Get from cache: {};", md5);
-                        return c.beatmap;
-                    };
-                    debug!(
-                        "[Beatmap] get beatmap {} from cache but expired, cache time: {:?}",
-                        md5, c.create_time
-                    );
-                    backup_beatmap = c.beatmap;
-                };
+        let cache = &glob.caches;
 
-                // Local cache expired or not founded, then
-                // Try get beatmap from database
-                // If get, will auto cache it to local.
-                if let Some(b) = Self::from_database(md5, &GetBeatmapMethod::Md5, database).await {
+        #[cfg(feature = "peace")]
+        let database = &glob.database;
+
+        #[cfg(feature = "peace")]
+        let expire = glob.config.read().await.timeout_beatmap_cache;
+
+        #[cfg(not(feature = "peace"))]
+        let expire = glob.local_config.data.beatmap_cache_timeout as i64;
+
+        let mut backup_beatmap = None;
+
+        // Try get beatmap from local cache or database
+        if try_from_cache {
+            // Get from local cache
+            if let Some(c) = cache.get_beatmap(md5, bid).await {
+                if !c.is_expired(expire) {
+                    info!("[Beatmap] Get from cache: {:?}({:?});", md5, bid);
+                    return c.beatmap.clone();
+                };
+                debug!(
+                    "[Beatmap] get beatmap {:?}({:?}) from cache but expired, cache time: {:?}",
+                    md5, bid, c.create_time
+                );
+                backup_beatmap = c.beatmap.clone();
+            };
+
+            // Local cache expired or not founded, then
+            // Try get beatmap from database
+            // If get, will auto cache it to local.
+            #[cfg(feature = "peace")]
+            if let Some(md5) = md5 {
+                if let Some(b) = Self::from_database(&md5, &GetBeatmapMethod::Md5, database).await {
                     // If not expired, cache it locally and returns it.
                     if !b.is_expired(expire) {
-                        cache.cache_beatmap(md5.clone(), Some(&b)).await;
+                        cache.cache_beatmap(Some(&md5), bid, Some(&b)).await;
                         return Some(b);
                     }
                     debug!(
-                        "[Beatmap] get beatmap {} from database but expired, cache time: {:?}",
-                        md5, b.update_time
+                        "[Beatmap] get beatmap {:?}({:?}) from database but expired, cache time: {:?}",
+                        md5, bid, b.update_time
                     );
                     backup_beatmap = Some(b);
                 };
             };
+            #[cfg(feature = "peace")]
+            if let Some(bid) = bid {
+                if let Some(b) = Self::from_database(&bid, &GetBeatmapMethod::Bid, database).await {
+                    // If not expired, cache it locally and returns it.
+                    if !b.is_expired(expire) {
+                        cache.cache_beatmap(md5, Some(bid), Some(&b)).await;
+                        return Some(b);
+                    }
+                    debug!(
+                        "[Beatmap] get beatmap {:?}({:?}) from database but expired, cache time: {:?}",
+                        md5, bid, b.update_time
+                    );
+                    backup_beatmap = Some(b);
+                };
+            };
+        };
 
+        // MD5 Available
+        if let Some(md5) = md5 {
             // Cache expired or not founded, then
             // Try get beatmap from osu!api (try with md5)
             // If get, will auto cache it to local and database.
-            match Self::from_osu_api(md5, &GetBeatmapMethod::Md5, None, &bancho.osu_api, database)
-                .await
+            match Self::from_osu_api(
+                md5,
+                &GetBeatmapMethod::Md5,
+                None,
+                &glob.osu_api,
+                #[cfg(feature = "peace")]
+                database,
+            )
+            .await
             {
                 Ok(b) => {
-                    cache.cache_beatmap(md5.clone(), Some(&b)).await;
+                    cache.cache_beatmap(Some(&md5), Some(b.id), Some(&b)).await;
                     return Some(b);
                 }
                 Err(err) => {
@@ -134,13 +177,44 @@ impl Beatmap {
                     debug!("[Beatmap] Failed to get beatmap ({}), err: {:?};", md5, err);
                     if err != ApiError::RequestError {
                         // Else, cache it Not submitted
-                        cache.cache_beatmap(md5.clone(), None).await;
+                        cache.cache_beatmap(Some(&md5), bid, None).await;
                     };
                 }
             };
         };
 
-        // Cannot get from osu!api from md5, then
+        // Cannot get from osu!api by md5, then
+        // If SID Available,
+        // Try get beatmap from osu!api (try with sid and file name)
+        if let Some(bid) = bid {
+            match Self::from_osu_api(
+                &bid,
+                &GetBeatmapMethod::Bid,
+                None,
+                &glob.osu_api,
+                #[cfg(feature = "peace")]
+                database,
+            )
+            .await
+            {
+                Ok(b) => {
+                    cache
+                        .cache_beatmap(Some(&b.md5), Some(b.id), Some(&b))
+                        .await;
+                    return Some(b);
+                }
+                Err(err) => {
+                    // If request error, we will not cache it.
+                    debug!("[Beatmap] Failed to get beatmap ({}), err: {:?};", bid, err);
+                    if err != ApiError::RequestError {
+                        // Else, cache it Not submitted
+                        cache.cache_beatmap(md5, Some(bid), None).await;
+                    };
+                }
+            };
+        };
+
+        // Cannot get from osu!api by md5 and bid, then
         // If SID Available,
         // Try get beatmap from osu!api (try with sid and file name)
         if let Some(sid) = sid {
@@ -148,52 +222,52 @@ impl Beatmap {
                 &sid,
                 &GetBeatmapMethod::Sid,
                 file_name,
-                &bancho.osu_api,
+                &glob.osu_api,
+                #[cfg(feature = "peace")]
                 database,
             )
             .await
             {
                 Ok(b) => {
                     let md5 = md5.unwrap_or(&b.md5).clone();
-                    cache.cache_beatmap(md5, Some(&b)).await;
+                    cache.cache_beatmap(Some(&md5), Some(b.id), Some(&b)).await;
                     return Some(b);
                 }
                 Err(err) => {
                     debug!("[Beatmap] Failed to get beatmap ({}), err: {:?};", sid, err);
-                    if let Some(md5) = md5 {
-                        // If request error, we will not cache it as "not submit".
-                        if err != ApiError::RequestError {
-                            // Else, cache it Not submitted
-                            cache.cache_beatmap(md5.clone(), None).await;
-                        };
-                    }
+                    // If request error, we will not cache it as "not submit".
+                    if err != ApiError::RequestError {
+                        // Else, cache it Not submitted
+                        cache.cache_beatmap(md5, bid, None).await;
+                    };
                 }
             };
         };
 
         if backup_beatmap.is_none() {
             info!(
-                "[Beatmap] Failed to get beatmaps anyway, md5: {:?}, sid: {:?}.",
-                md5, sid
+                "[Beatmap] Failed to get beatmaps anyway, md5: {:?}, bid: {:?}, sid: {:?}.",
+                md5, bid, sid
             );
         } else {
             info!(
-                "[Beatmap] Get may outdated beatmap, fail to update beatmap cache. md5: {:?}, sid: {:?}.",
-                md5, sid
+                "[Beatmap] Get may outdated beatmap, fail to update beatmap cache. md5: {:?}, bid: {:?}, sid: {:?}.",
+                md5, bid, sid
             );
         }
         backup_beatmap
     }
 
     #[inline(always)]
-    // TODO: from cache by bid, sid...
+    // from cache by bid, sid...
     pub async fn from_cache(
         beatmap_md5: &String,
+        bid: i32,
         cache: &Caches,
         expire: i64,
     ) -> Result<Option<Self>, ()> {
         debug!("[Beatmap] try get beatmap {} from cache...", beatmap_md5);
-        let c = cache.get_beatmap(beatmap_md5).await;
+        let c = cache.get_beatmap(Some(beatmap_md5), Some(bid)).await;
         if let Some(c) = c {
             // Check is expires
             if c.is_expired(expire) {
@@ -203,7 +277,7 @@ impl Beatmap {
                 );
                 return Err(());
             };
-            return Ok(c.beatmap);
+            return Ok(c.beatmap.clone());
         };
         // Not in cache
         Err(())
@@ -215,15 +289,21 @@ impl Beatmap {
         method: &GetBeatmapMethod,
         file_name: Option<&String>,
         osu_api: &Data<RwLock<OsuApi>>,
-        database: &Database,
+        #[cfg(feature = "peace")] database: &Database,
     ) -> Result<Self, ApiError> {
-        Ok(
-            BeatmapFromApi::from_osu_api(key, method, file_name, osu_api, database)
-                .await?
-                .convert_to_beatmap(),
+        Ok(BeatmapFromApi::from_osu_api(
+            key,
+            method,
+            file_name,
+            osu_api,
+            #[cfg(feature = "peace")]
+            database,
         )
+        .await?
+        .convert_to_beatmap())
     }
 
+    #[cfg(feature = "peace")]
     #[inline(always)]
     pub async fn from_database<T: Any + Display>(
         key: &T,
@@ -246,14 +326,19 @@ impl Beatmap {
         .await
     }
 
+    #[cfg(feature = "peace")]
     #[inline(always)]
     pub async fn from_database_by_bid(beatmap_id: i32, database: &Database) -> Option<Self> {
         Self::from_database(&beatmap_id, &GetBeatmapMethod::Bid, database).await
     }
+
+    #[cfg(feature = "peace")]
     #[inline(always)]
     pub async fn from_database_by_sid(beatmap_set_id: i32, database: &Database) -> Option<Self> {
         Self::from_database(&beatmap_set_id, &GetBeatmapMethod::Sid, database).await
     }
+
+    #[cfg(feature = "peace")]
     #[inline(always)]
     pub async fn from_database_by_md5(beatmap_md5: &String, database: &Database) -> Option<Self> {
         Self::from_database(beatmap_md5, &GetBeatmapMethod::Md5, database).await

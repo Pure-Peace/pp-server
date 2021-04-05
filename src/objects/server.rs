@@ -1,3 +1,4 @@
+use crate::Glob;
 use actix_cors::Cors;
 use actix_web::{dev::Server, middleware::Logger, web::Data, App, HttpServer};
 use async_std::channel::{unbounded, Receiver, Sender};
@@ -9,14 +10,12 @@ use colored::Colorize;
 use actix_web_prom::PrometheusMetrics;
 use prometheus::{opts, IntCounterVec};
 
-use crate::settings::model::{LocalConfig, Settings};
-use crate::{caches::Caches, renders::MainPage};
+use crate::settings::model::Settings;
 use crate::{routes, utils};
 
 pub struct PPserver {
     pub addr: String,
-    pub local_config: LocalConfig,
-    pub caches: Data<Caches>,
+    pub glob: Data<Glob>,
     pub prometheus: PrometheusMetrics,
     pub counter: IntCounterVec,
     pub server: Option<Server>,
@@ -26,9 +25,10 @@ pub struct PPserver {
 }
 
 impl PPserver {
-    pub fn new(local_config: LocalConfig) -> Self {
-        let sets = &local_config.data;
-        let addr = local_config
+    pub fn new(glob: Data<Glob>) -> Self {
+        let sets = &glob.local_config.data;
+        let addr = glob
+            .local_config
             .cfg
             .get("server.addr")
             .unwrap_or("127.0.0.1:8088".to_string());
@@ -37,12 +37,9 @@ impl PPserver {
         let (prometheus, counter) = Self::prom_init(&addr, sets);
         let (sender, receiver) = unbounded();
 
-        let caches = Data::new(Caches::new(local_config.data.clone()));
-
         Self {
             addr,
-            local_config,
-            caches,
+            glob,
             prometheus,
             counter,
             server: None,
@@ -56,12 +53,11 @@ impl PPserver {
         // Run server
         info!("{}", "Starting http server...".bold().bright_blue());
         let server = {
-            let settings_cloned = self.local_config.data.clone();
+            let glob_cloned = self.glob.clone();
+            let settings_cloned = self.glob.local_config.data.clone();
             let counter = self.counter.clone();
-            let caches = self.caches.clone();
             let sender = Data::new(self.sender.clone());
             let prom = self.prometheus.clone();
-            let default_render = MainPage::new();
             HttpServer::new(move || {
                 // App
                 App::new()
@@ -75,10 +71,8 @@ impl PPserver {
                             .supports_credentials(),
                     )
                     .app_data(sender.clone())
-                    .app_data(caches.clone())
-                    .data(settings_cloned.clone())
+                    .app_data(glob_cloned.clone())
                     .data(counter.clone())
-                    .data(default_render.clone())
                     .configure(|service_cfg| routes::init(service_cfg, &settings_cloned))
             })
             .shutdown_timeout(2)
@@ -92,29 +86,30 @@ impl PPserver {
     }
 
     pub async fn start(&mut self) -> std::io::Result<()> {
+        let config = &self.glob.local_config.data;
         // Should preload or not
-        if self.local_config.data.preload_osu_files {
-            utils::preload_osu_files(&self.local_config.data, &self.caches).await;
+        if config.preload_osu_files {
+            utils::preload_osu_files(config, &self.glob.caches).await;
         };
         // Auto clean
-        let interval = self.local_config.data.auto_clean_interval;
-        let timeout = self.local_config.data.beatmap_cache_timeout;
-        let caches = self.caches.clone();
+        let interval = config.auto_clean_interval;
+        let timeout = config.beatmap_cache_timeout;
+        let caches = self.glob.caches.clone();
         async_std::task::spawn(async move {
             async_std::task::sleep(Duration::from_secs(interval)).await;
             let mut ready_to_clean = Vec::new();
             let now = Local::now().timestamp();
-            let beatmap_cache = caches.beatmap_cache.read().await;
-            for (k, v) in beatmap_cache.iter() {
+            let pp_beatmap_cache = caches.pp_beatmap_cache.read().await;
+            for (k, v) in pp_beatmap_cache.iter() {
                 if now - v.time.timestamp() > timeout as i64 {
                     ready_to_clean.push(k.clone());
                 }
             }
             if ready_to_clean.len() > 0 {
                 debug!("Timeout cache founded, will clean them...");
-                let mut beatmap_cache = caches.beatmap_cache.write().await;
+                let mut pp_beatmap_cache = caches.pp_beatmap_cache.write().await;
                 for k in ready_to_clean {
-                    beatmap_cache.remove(&k);
+                    pp_beatmap_cache.remove(&k);
                 }
             }
         });

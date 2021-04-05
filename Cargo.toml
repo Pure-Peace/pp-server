@@ -1,6 +1,6 @@
 [package]
 name = "pp-server"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"
@@ -11,14 +11,12 @@ repository = "https://github.com/pure-peace/pp-server"
 default = []
 
 peace = [
-    'deadpool-postgres',
-    'deadpool-redis',
-    'field_names',
-    'postgres-types',
-    'serde_str',
-    'tokio-pg-mapper',
-    'tokio-pg-mapper-derive',
-    'tokio-postgres',
+    "deadpool-postgres",
+    "deadpool-redis",
+    "postgres-types",
+    "tokio-pg-mapper",
+    "tokio-pg-mapper-derive",
+    "tokio-postgres",
 ]
 
 [dependencies]
@@ -38,16 +36,20 @@ log = "0.4.14"
 md-5 = "0.9.1"
 peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
 prometheus = { version = "0.11.0", features = ["process"] }
-reqwest = { version = "0.11.1", features = ["rustls-tls", "json"], default-features = false }
+reqwest = { version = "0.10.10", features = ["rustls-tls", "json"], default-features = false }
 serde = { version = "1.0.124", features = ["derive"] }
 serde_json = "1.0.64"
+derivative = "2.2.0"
+json = "0.12.4"
+bytes = "0.5.6"
+serde_str = "0.1.0"
+field_names = "0.1.1"
+
 
 # Feature peace
 deadpool-postgres = { version = "0.5.6", optional = true }
 deadpool-redis = { version = "0.6.1", optional = true }
-field_names = { version = "0.1.1", optional = true }
 postgres-types = { version = "0.1.2", features = ["derive", "with-chrono-0_4", "with-serde_json-1"], optional = true }
-serde_str = { version = "0.1.0", optional = true }
 tokio-pg-mapper = { version = "0.1.8", optional = true }
 tokio-pg-mapper-derive = { version = "0.1.5", optional = true }
 tokio-postgres = { version = "0.5.5", features = ["with-chrono-0_4", "with-serde_json-1"], optional = true }
@@ -59,7 +61,7 @@ tokio-postgres = { version = "0.5.5", features = ["with-chrono-0_4", "with-serde
 [profile.release]
 lto = true
 codegen-units = 1
-opt-level = 's'
+opt-level = "s"
 
 # link-time-optimization
 # Enabling makes the compiled program size smaller and higher performance, 
@@ -67,4 +69,4 @@ opt-level = 's'
 [profile.bench]
 lto = true
 codegen-units = 1
-opt-level = 's'
+opt-level = "s"

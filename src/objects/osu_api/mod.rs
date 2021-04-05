@@ -9,9 +9,8 @@ pub use requester::*;
 
 mod depends {
     pub use async_std::sync::RwLock;
-    pub use derivative::Derivative;
-    pub use json::object;
 
+    pub use crate::objects::BeatmapFromApi;
     pub use reqwest::Response;
     pub use serde::{de::DeserializeOwned, Serialize};
     pub use std::{
@@ -22,6 +21,6 @@ mod depends {
         time::Duration,
     };
 
-    pub use crate::objects::BeatmapFromApi;
+    #[cfg(feature = "peace")]
     pub use crate::settings::bancho::BanchoConfig;
 }

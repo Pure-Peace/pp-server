@@ -7,9 +7,12 @@ It is also the PP server of **[Peace](https://github.com/Pure-Peace/peace)**.
 ### Features
 
 - **Common**:
+  - **request with you like: beatmap md5, beatmap id, beatmapset id + file name**
+  - **beatmap cache**
   - **preload beatmaps** (WARING: May cause insufficient memory, if the number of maps is large enough)
   - **calculate beatmap MD5**
-  - **request beatmap from osu!api**
+  - **auto request, download beatmap from osu!api**
+  - **Oppai? Or a custom algorithm**
   - **pp calculate**:
     - osu!Standard
     - Catch the beat
@@ -20,6 +23,20 @@ It is also the PP server of **[Peace](https://github.com/Pure-Peace/peace)**.
   - How to enable?
     - `Cargo.toml` Set `default = []` => `default = ["peace"]`
   
+### Best performance (Fastest, but lower accuracy)
+
+Set Cargo.toml
+
+```rust
+peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
+```
+
+to
+
+```rust
+peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main", feature = "no_sliders_no_leniency" }
+```
+
 ## Note
 
 **This pp-server requires all `.osu` files use file MD5 as the name.**
@@ -40,6 +57,7 @@ It is also the PP server of **[Peace](https://github.com/Pure-Peace/peace)**.
 
 1. Set your `.osu` files dir path in `pp-server-config/default.toml`
 2. Will let the `.osu` files name be the `md5` of the file
+3. Set your osu!api keys in *.toml (if enabled feature `peace`, set it on your database)
 
 ### Debug
 

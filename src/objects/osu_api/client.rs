@@ -1,4 +1,5 @@
 use super::depends::*;
+pub use derivative::Derivative;
 
 #[derive(Derivative)]
 #[derivative(Debug)]

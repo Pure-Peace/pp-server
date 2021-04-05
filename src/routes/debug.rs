@@ -2,7 +2,7 @@ use actix_web::{dev::Server, get, web::Data, HttpResponse};
 use async_std::channel::Sender;
 use std::time::Instant;
 
-use crate::caches::Caches;
+use crate::objects::Caches;
 
 /// GET "/"
 #[get("/")]
@@ -34,7 +34,7 @@ pub async fn server_stop(sender: Data<Sender<Option<Server>>>) -> HttpResponse {
 #[get("/clear_cache")]
 pub async fn clear_cache(caches: Data<Caches>) -> HttpResponse {
     let start = Instant::now();
-    caches.beatmap_cache.write().await.clear();
+    caches.pp_beatmap_cache.write().await.clear();
     let end = start.elapsed();
     HttpResponse::Ok().body(format!("clear_cache done in: {:?}", end))
 }

@@ -2,7 +2,7 @@ use super::{depends::*, Beatmap, BeatmapCache, GetBeatmapMethod};
 use crate::objects::osu_api::errors::ApiError;
 use crate::utils;
 
-#[derive(Debug, FieldNames, ToSql, Deserialize, Clone)]
+#[derive(Debug, FieldNames, Deserialize, Clone)]
 pub struct BeatmapFromApi {
     #[serde(rename = "beatmap_id", with = "serde_str")]
     pub id: i32,
@@ -101,7 +101,7 @@ impl BeatmapFromApi {
         method: &GetBeatmapMethod,
         file_name: Option<&String>,
         osu_api: &Data<RwLock<OsuApi>>,
-        database: &Database,
+        #[cfg(feature = "peace")] database: &Database,
     ) -> Result<Self, ApiError> {
         let v = key as &dyn Any;
         let osu_api = osu_api.read().await;
@@ -124,6 +124,7 @@ impl BeatmapFromApi {
                     // Sid will get a list
                     let mut target = None;
                     for b in beatmap_list {
+                        #[cfg(feature = "peace")]
                         // Cache them
                         b.save_to_database(database).await;
                         // Try find target
@@ -155,10 +156,12 @@ impl BeatmapFromApi {
             "[BeatmapFromApi] Success get with Method({:?}): {:?}",
             method, b
         );
+        #[cfg(feature = "peace")]
         b.save_to_database(database).await;
         Ok(b)
     }
 
+    #[cfg(feature = "peace")]
     #[inline(always)]
     pub async fn save_to_database(&self, database: &Database) -> bool {
         match database
