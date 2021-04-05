@@ -12,6 +12,8 @@ It is also the PP server of **[Peace](https://github.com/Pure-Peace/peace)**.
   - **preload beatmaps** (WARING: May cause insufficient memory, if the number of maps is large enough)
   - **calculate beatmap MD5**
   - **auto request, download beatmap from osu!api**
+  - **raw pp info: aim, spd, acc, str.**
+  - **acc list: 95, 98, 99, 100 (request with &acc_list=1)**
   - **Oppai? Or a custom algorithm**
   - **pp calculate**:
     - osu!Standard
@@ -22,7 +24,136 @@ It is also the PP server of **[Peace](https://github.com/Pure-Peace/peace)**.
   - beatmap database (needs setup with [Peace](https://github.com/Pure-Peace/Peace/tree/main/sql))
   - How to enable?
     - `Cargo.toml` Set `default = []` => `default = ["peace"]`
-  
+
+## Examples
+
+**with md5**
+
+*Common*
+
+```
+/api/calc?md5=ccb1f31b5eeaf26d40f8c905293efc03
+```
+
+```json
+{
+  "acc_list": null,
+  "message": "done",
+  "mode": 0,
+  "mods": 0,
+  "pp": 522.0230712890625,
+  "raw": {
+    "acc": 128.93072509765625,
+    "aim": 255.26805114746094,
+    "spd": 127.87066650390625,
+    "str": 0,
+    "total": 522.0230712890625
+  },
+  "stars": 7.084656715393066,
+  "status": 1
+}
+```
+
+*Simple*
+
+```
+/api/calc?md5=ccb1f31b5eeaf26d40f8c905293efc03&simple=1
+```
+
+```json
+{
+  "acc_list": null,
+  "message": "done",
+  "mode": 0,
+  "mods": 0,
+  "pp": 522.0230712890625,
+  "stars": 7.084656715393066,
+  "status": 1
+}
+```
+
+*Acc list*
+
+```
+/api/calc?md5=ccb1f31b5eeaf26d40f8c905293efc03&acc_list=1
+```
+
+```json
+{
+  "acc_list": {
+    "95": 311.07989501953125,
+    "98": 389.848388671875,
+    "99": 452.67974853515625,
+    "100": 522.0230712890625
+  },
+  "message": "done",
+  "mode": 0,
+  "mods": 0,
+  "pp": 522.0230712890625,
+  "raw": {
+    "acc": 128.93072509765625,
+    "aim": 255.26805114746094,
+    "spd": 127.87066650390625,
+    "str": 0,
+    "total": 522.0230712890625
+  },
+  "stars": 7.084656715393066,
+  "status": 1
+}
+```
+
+**with bid (Can use without add osu!api keys)**
+
+```
+/api/calc?bid=2848898
+```
+
+```json
+{
+  "acc_list": null,
+  "message": "done",
+  "mode": 0,
+  "mods": 0,
+  "pp": 366.8739013671875,
+  "raw": {
+    "acc": 118.15778350830078,
+    "aim": 122.00947570800781,
+    "spd": 121.79961395263672,
+    "str": 0,
+    "total": 366.8739013671875
+  },
+  "stars": 5.856814384460449,
+  "status": 1
+}
+```
+
+**with sid + file name (need osu!api keys)**
+
+```
+/api/calc?sid=1378720&file_name=Tanchiky%20-%20Bridge%20(NyarkoO)%20[Extension].osu
+```
+
+This method is currently cannot use cache.
+
+```json
+{
+  "acc_list": null,
+  "message": "done",
+  "mode": 0,
+  "mods": 0,
+  "pp": 366.8739013671875,
+  "raw": {
+    "acc": 118.15778350830078,
+    "aim": 122.00947570800781,
+    "spd": 121.79961395263672,
+    "str": 0,
+    "total": 366.8739013671875
+  },
+  "stars": 5.856814384460449,
+  "status": 1
+}
+```
+
 ### Best performance (Fastest, but lower accuracy)
 
 Set Cargo.toml

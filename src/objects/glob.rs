@@ -1,10 +1,10 @@
 use actix_web::web::Data;
+#[cfg(feature = "peace")]
 use async_std::sync::RwLock;
 
 use super::{Caches, OsuApi};
-use crate::renders::MainPage;
+use crate::{renders::MainPage, utils};
 use crate::settings::model::LocalConfig;
-use crate::utils::lock_wrapper;
 
 #[cfg(feature = "peace")]
 use crate::database::Database;
@@ -12,7 +12,11 @@ use crate::database::Database;
 use crate::settings::bancho::BanchoConfig;
 
 pub struct Glob {
+    #[cfg(feature = "peace")]
     pub osu_api: Data<RwLock<OsuApi>>,
+    #[cfg(not(feature = "peace"))]
+    pub osu_api: Data<OsuApi>,
+
     pub caches: Data<Caches>,
     pub render_main_page: Data<MainPage>,
     pub local_config: LocalConfig,
@@ -29,11 +33,11 @@ impl Glob {
     ) -> Self {
         // Create...
         #[cfg(feature = "peace")]
-        let config = lock_wrapper(BanchoConfig::from_database(&database).await.unwrap());
+        let config = utils::lock_wrapper(BanchoConfig::from_database(&database).await.unwrap());
         #[cfg(feature = "peace")]
-        let osu_api = lock_wrapper(OsuApi::new(&config).await);
+        let osu_api = utils::lock_wrapper(OsuApi::new(&config).await);
         #[cfg(not(feature = "peace"))]
-        let osu_api = lock_wrapper(OsuApi::new(&local_config.data.osu_api_keys).await);
+        let osu_api = Data::new(OsuApi::new(&local_config.data.osu_api_keys).await);
 
         let render_main_page = Data::new(MainPage::new());
         let caches = Data::new(Caches::new(local_config.data.clone()));

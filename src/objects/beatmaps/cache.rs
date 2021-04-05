@@ -51,7 +51,8 @@ impl BeatmapCache {
         key: &T,
         method: &GetBeatmapMethod,
         file_name: Option<&String>,
-        osu_api: &Data<RwLock<OsuApi>>,
+        #[cfg(feature = "peace")] osu_api: &Data<RwLock<OsuApi>>,
+        #[cfg(not(feature = "peace"))] osu_api: &Data<OsuApi>,
         #[cfg(feature = "peace")] database: &Database,
     ) -> Result<Self, ApiError> {
         Ok(BeatmapFromApi::from_osu_api(

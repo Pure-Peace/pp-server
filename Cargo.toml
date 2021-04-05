@@ -1,6 +1,6 @@
 [package]
 name = "pp-server"
-version = "0.2.0"
+version = "0.2.2"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"

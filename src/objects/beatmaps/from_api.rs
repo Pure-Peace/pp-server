@@ -100,10 +100,12 @@ impl BeatmapFromApi {
         key: &T,
         method: &GetBeatmapMethod,
         file_name: Option<&String>,
-        osu_api: &Data<RwLock<OsuApi>>,
+        #[cfg(feature = "peace")] osu_api: &Data<RwLock<OsuApi>>,
+        #[cfg(not(feature = "peace"))] osu_api: &Data<OsuApi>,
         #[cfg(feature = "peace")] database: &Database,
     ) -> Result<Self, ApiError> {
         let v = key as &dyn Any;
+        #[cfg(feature = "peace")]
         let osu_api = osu_api.read().await;
         let b = match method {
             &GetBeatmapMethod::Md5 => {

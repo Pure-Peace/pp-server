@@ -79,8 +79,6 @@ impl Beatmap {
     /// cache expires seconds can be setted in database (glob.config.timeout_beatmap_cache),
     /// default is 3600s (one hour)
     ///
-    /// TODO: add bid support?
-    /// TODO: refactor beatmaps cache, can use sid or bid?
     ///
     pub async fn get(
         md5: Option<&String>,
@@ -288,7 +286,8 @@ impl Beatmap {
         key: &T,
         method: &GetBeatmapMethod,
         file_name: Option<&String>,
-        osu_api: &Data<RwLock<OsuApi>>,
+        #[cfg(feature = "peace")] osu_api: &Data<RwLock<OsuApi>>,
+        #[cfg(not(feature = "peace"))] osu_api: &Data<OsuApi>,
         #[cfg(feature = "peace")] database: &Database,
     ) -> Result<Self, ApiError> {
         Ok(BeatmapFromApi::from_osu_api(

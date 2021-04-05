@@ -11,6 +11,7 @@ use crate::settings::model::Settings;
 
 use super::Beatmap;
 
+#[derive(Clone)]
 pub struct PPbeatmapCache {
     pub beatmap: Data<PPbeatmap>,
     pub time: DateTime<Local>,

@@ -1,13 +1,10 @@
 #![allow(unused_macros)]
 
-use actix_web::{web::Data, HttpRequest};
-
-use std::fmt::Display;
-use std::str::FromStr;
-
-use async_std::sync::RwLock;
+use actix_web::HttpRequest;
 use chrono::{DateTime, Local};
 use serde::de::{self, Deserialize, Deserializer};
+use std::fmt::Display;
+use std::str::FromStr;
 use tokio_pg_mapper::FromTokioPostgresRow;
 
 use crate::database::Database;
@@ -22,7 +19,6 @@ where
     let s = String::deserialize(deserializer)?;
     T::from_str(&s).map_err(de::Error::custom)
 }
-
 
 #[inline(always)]
 pub fn noew_time_local() -> DateTime<Local> {
@@ -128,4 +124,3 @@ pub fn build_s(len: usize) -> String {
     }
     s
 }
-
