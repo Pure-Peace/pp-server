@@ -123,7 +123,7 @@ impl Beatmap {
             // If get, will auto cache it to local.
             #[cfg(feature = "peace")]
             if let Some(md5) = md5 {
-                if let Some(b) = Self::from_database(&md5, &GetBeatmapMethod::Md5, database).await {
+                if let Some(b) = Self::from_database(md5, &GetBeatmapMethod::Md5, database).await {
                     // If not expired, cache it locally and returns it.
                     if !b.is_expired(expire) {
                         cache.cache_beatmap(Some(&md5), bid, Some(&b)).await;
