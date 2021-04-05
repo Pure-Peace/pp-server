@@ -105,6 +105,8 @@ impl PPserver {
                     ready_to_clean.push(k.clone());
                 }
             }
+            // release lock
+            drop(pp_beatmap_cache);
             if ready_to_clean.len() > 0 {
                 debug!("Timeout cache founded, will clean them...");
                 let mut pp_beatmap_cache = caches.pp_beatmap_cache.write().await;
