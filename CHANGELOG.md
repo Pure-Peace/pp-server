@@ -2,6 +2,10 @@
 
 - No changes so far
 
+# v0.2.3
+
+- Add no_miss option, (additional) calculate score pp if no miss.
+
 # v0.2.2
 
 - More info.

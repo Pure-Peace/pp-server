@@ -51,6 +51,7 @@ pub struct CalcData {
     pub miss: Option<usize>,
     pub simple: Option<i32>,
     pub acc_list: Option<i32>,
+    pub no_miss: Option<i32>,
 }
 
 #[inline(always)]

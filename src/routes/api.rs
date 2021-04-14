@@ -4,6 +4,7 @@ use actix_web::HttpResponse;
 use actix_web::{get, web::Data};
 use actix_web::{web::Query, HttpRequest};
 use askama::Template;
+use peace_performance::PpResult;
 use serde_json::json;
 use serde_json::Value::Null;
 use std::time::Instant;
@@ -21,6 +22,15 @@ pub async fn index(glob: Data<Glob>) -> HttpResponse {
 // calculate pp (used by peace)
 #[get("/calc")]
 pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
+    let get_raw = |result: &PpResult| {
+        json!({
+            "aim": result.raw.aim.unwrap_or(0.0),
+            "spd": result.raw.spd.unwrap_or(0.0),
+            "acc": result.raw.acc.unwrap_or(0.0),
+            "str": result.raw.str.unwrap_or(0.0),
+            "total": result.raw.total,
+        })
+    };
     let failed = |status, message| {
         HttpResponse::Ok()
             .content_type("application/json")
@@ -35,7 +45,7 @@ pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
     let start = Instant::now();
 
     // Parse query data
-    let data = match Query::<CalcData>::from_query(&req.query_string()) {
+    let mut data = match Query::<CalcData>::from_query(&req.query_string()) {
         Ok(Query(q)) => q,
         Err(err) => {
             return failed(0, err.to_string().as_str());
@@ -90,6 +100,19 @@ pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
         value["acc_list"] = calculator::calculate_acc_list(&beatmap, &data).await;
     };
 
+    // If need, calculate no_miss
+    if data.no_miss.is_some() && data.no_miss.unwrap() > 0 {
+        data.miss = Some(0);
+        let no_miss_result = calculator::calculate_pp(&beatmap, &data).await;
+        let mut json = json!({
+            "pp": no_miss_result.pp(),
+        });
+        if data.simple.is_some() && data.simple.unwrap() > 0 {
+            json["raw"] = get_raw(&no_miss_result);
+        };
+        value["no_miss"] = json;
+    };
+
     let end = start.elapsed();
     info!(
         "[calculate_pp] Beatmap {:?}({:?}) calculate done in: {:?}",
@@ -101,13 +124,7 @@ pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
             .content_type("application/json")
             .body(value)
     } else {
-        value["raw"] = json!({
-            "aim": result.raw.aim.unwrap_or(0.0),
-            "spd": result.raw.spd.unwrap_or(0.0),
-            "acc": result.raw.acc.unwrap_or(0.0),
-            "str": result.raw.str.unwrap_or(0.0),
-            "total": result.raw.total,
-        });
+        value["raw"] = get_raw(&result);
         HttpResponse::Ok()
             .content_type("application/json")
             .body(value)

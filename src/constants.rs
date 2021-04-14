@@ -9,9 +9,9 @@ pub const BANNER: &str = r#"
 "#;
 
 #[cfg(feature = "peace")]
-pub const DB_VERSION: &str = "0.8.5";
+pub const DB_VERSION: &str = "0.9.0";
 #[cfg(feature = "peace")]
-pub const PEACE_VERSION: &str = "0.6.4";
+pub const PEACE_VERSION: &str = "0.7.0";
 
 #[derive(Debug, Clone)]
 pub enum RankStatusInServer {
