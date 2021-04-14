@@ -106,10 +106,8 @@ pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
         let no_miss_result = calculator::calculate_pp(&beatmap, &data).await;
         let mut json = json!({
             "pp": no_miss_result.pp(),
+            "raw": get_raw(&no_miss_result)
         });
-        if data.simple.is_some() && data.simple.unwrap() > 0 {
-            json["raw"] = get_raw(&no_miss_result);
-        };
         value["no_miss"] = json;
     };
 
