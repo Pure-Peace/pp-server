@@ -309,7 +309,7 @@ impl Beatmap {
         method: &GetBeatmapMethod,
         database: &Database,
     ) -> Option<Self> {
-        let v = key as &dyn Any;
+        let v = (key as &dyn Any).downcast_ref::<String>().unwrap();
         debug!(
             "[Beatmap] Try get with Method({:?}) {} from database...",
             method, key
@@ -319,7 +319,7 @@ impl Beatmap {
             "maps",
             method.db_column_name().as_str(),
             Self::get_query_fields().as_str(),
-            v.downcast_ref::<String>().unwrap(),
+            v,
             database,
         )
         .await

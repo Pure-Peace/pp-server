@@ -15,6 +15,9 @@ It is also the PP server of **[Peace](https://github.com/Pure-Peace/peace)**.
   - **raw pp info: aim, spd, acc, str.**
   - **acc list: 95, 98, 99, 100 (request with &acc_list=1)**
   - **Oppai? Or a custom algorithm**
+  - **auto-pp-recalculate (peace)**
+    - If pp calculation fails (such as restarting pp-server), just save task to redis in the format of "`calc:{table(mode)}:{score_id}:{player_id}`":"`md5=xxx&mods=xx&mode=xx&n300=xx`". pp-server will auto recalculate these tasks, and notify peace to update the stats of these players.
+.
   - **pp calculate**:
     - osu!Standard
     - Catch the beat

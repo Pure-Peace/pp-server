@@ -33,7 +33,7 @@ impl GetBeatmapError {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CalcData {
     pub md5: Option<String>,
     pub bid: Option<i32>,
