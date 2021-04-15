@@ -138,9 +138,9 @@ impl Redis {
         &self,
         name: &str,
         arg: ARG,
-    ) -> T {
+    ) -> RedisResult<T> {
         let mut conn = self.get_conn().await;
-        _cmd(name).arg(arg).query_async(&mut conn).await.unwrap()
+        _cmd(name).arg(arg).query_async(&mut conn).await
     }
 
     /// Execute a raw cmd
@@ -276,9 +276,9 @@ impl Redis {
     /// let count: u32 = del("key1").await; // delete one key
     /// ```
     ///
-    pub async fn del<T: ToRedisArgs>(&self, keys: T) -> u32 {
+    pub async fn del<T: ToRedisArgs>(&self, keys: T) -> RedisResult<u32> {
         let mut conn = self.get_conn().await;
-        _cmd("DEL").arg(keys).query_async(&mut conn).await.unwrap()
+        _cmd("DEL").arg(keys).query_async(&mut conn).await
     }
 
     /// Set expire time to a key (seconds)
@@ -316,7 +316,10 @@ impl Redis {
     ///     "default".to_string()
     /// });
     /// ```
-    pub async fn get<T: Send + FromRedisValue, A: ToRedisArgs>(&self, key: A) -> Result<T, RedisError> {
+    pub async fn get<T: Send + FromRedisValue, A: ToRedisArgs>(
+        &self,
+        key: A,
+    ) -> Result<T, RedisError> {
         let mut conn = self.get_conn().await;
         match _cmd("GET").arg(key).query_async(&mut conn).await {
             Ok(res) => Ok(res),

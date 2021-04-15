@@ -17,6 +17,14 @@ beatmap_cache_timeout = 3600
 auto_clean_cache = true
 auto_clean_interval = 300
 
+# pp server config
 [server]
 host = "127.0.0.1"
 port = 8088
+
+# auto pp recalculate task config (features peace)
+[auto_pp_recalculate]
+# each interval do once
+interval = 60
+# if pp calculate fails > max_retry, skip it
+max_retry = 5

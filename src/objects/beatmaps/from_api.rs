@@ -104,25 +104,21 @@ impl BeatmapFromApi {
         #[cfg(not(feature = "peace"))] osu_api: &Data<OsuApi>,
         #[cfg(feature = "peace")] database: &Database,
     ) -> Result<Self, ApiError> {
-        let v = key as &dyn Any;
         #[cfg(feature = "peace")]
         let osu_api = osu_api.read().await;
         let b = match method {
             &GetBeatmapMethod::Md5 => {
-                osu_api
-                    .fetch_beatmap_by_md5(v.downcast_ref().unwrap())
-                    .await
+                let v = (key as &dyn Any).downcast_ref().unwrap();
+                osu_api.fetch_beatmap_by_md5(v).await
             }
             &GetBeatmapMethod::Bid => {
-                osu_api
-                    .fetch_beatmap_by_bid(*v.downcast_ref().unwrap())
-                    .await
+                let v = *(key as &dyn Any).downcast_ref().unwrap();
+                osu_api.fetch_beatmap_by_bid(v).await
             }
             &GetBeatmapMethod::Sid => {
                 if let Some(file_name) = file_name {
-                    let beatmap_list = osu_api
-                        .fetch_beatmap_by_sid(*v.downcast_ref().unwrap())
-                        .await?;
+                    let v = *(key as &dyn Any).downcast_ref().unwrap();
+                    let beatmap_list = osu_api.fetch_beatmap_by_sid(v).await?;
                     // Sid will get a list
                     let mut target = None;
                     for b in beatmap_list {

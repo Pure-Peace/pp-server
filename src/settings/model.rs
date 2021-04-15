@@ -66,6 +66,7 @@ pub struct Settings {
     pub beatmap_cache_timeout: u64,
     pub auto_clean_cache: bool,
     pub auto_clean_interval: u64,
+    pub auto_pp_recalculate: AutoPPRecalculate,
     pub server: Server,
     pub logger: Logger,
     #[serde(rename = "prometheus")]
@@ -150,4 +151,10 @@ pub struct Prometheus {
     pub namespace: String,
     pub endpoint: String,
     pub exclude_endpoint_log: bool,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AutoPPRecalculate {
+    pub interval: u64,
+    pub max_retry: i32,
 }

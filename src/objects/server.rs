@@ -1,5 +1,7 @@
+use crate::objects::calculator::{self, CalcData};
 use crate::Glob;
 use actix_cors::Cors;
+use actix_web::web::Query;
 use actix_web::{dev::Server, middleware::Logger, web::Data, App, HttpServer};
 use async_std::channel::{unbounded, Receiver, Sender};
 use chrono::Local;
@@ -91,33 +93,235 @@ impl PPserver {
         if config.preload_osu_files {
             utils::preload_osu_files(config, &self.glob.caches).await;
         };
-        // Auto clean
-        let interval = config.auto_clean_interval;
-        let timeout = config.beatmap_cache_timeout;
-        let caches = self.glob.caches.clone();
-        async_std::task::spawn(async move {
-            async_std::task::sleep(Duration::from_secs(interval)).await;
-            let mut ready_to_clean = Vec::new();
-            let now = Local::now().timestamp();
-            let pp_beatmap_cache = caches.pp_beatmap_cache.read().await;
-            for (k, v) in pp_beatmap_cache.iter() {
-                if now - v.time.timestamp() > timeout as i64 {
-                    ready_to_clean.push(k.clone());
-                }
-            }
-            // release lock
-            drop(pp_beatmap_cache);
-            if ready_to_clean.len() > 0 {
-                debug!("Timeout cache founded, will clean them...");
-                let mut pp_beatmap_cache = caches.pp_beatmap_cache.write().await;
-                for k in ready_to_clean {
-                    pp_beatmap_cache.remove(&k);
-                }
-            }
-        });
+
+        self.start_auto_cache_clean(config.auto_clean_interval, config.beatmap_cache_timeout)
+            .await;
+        #[cfg(feature = "peace")]
+        self.start_auto_pp_recalculate(
+            config.auto_pp_recalculate.interval,
+            config.auto_pp_recalculate.max_retry,
+        )
+        .await;
+
         self.run_server().await;
         // Wait for stopped
         self.stopped().await
+    }
+
+    #[inline(always)]
+    // Auto cache clean
+    pub async fn start_auto_cache_clean(&self, interval: u64, timeout: u64) {
+        let caches = self.glob.caches.clone();
+        let duration = Duration::from_secs(interval);
+        async_std::task::spawn(async move {
+            loop {
+                async_std::task::sleep(duration).await;
+                debug!("[auto_cache_clean] task started...");
+                let start = Instant::now();
+                let mut ready_to_clean = Vec::new();
+                let now = Local::now().timestamp();
+
+                // Collect cache if timeout
+                let pp_beatmap_cache = caches.pp_beatmap_cache.read().await;
+                for (k, v) in pp_beatmap_cache.iter() {
+                    if now - v.time.timestamp() > timeout as i64 {
+                        ready_to_clean.push(k.clone());
+                    }
+                }
+                // release read lock
+                drop(pp_beatmap_cache);
+
+                // Clean timeout cache
+                if ready_to_clean.len() > 0 {
+                    debug!("[auto_cache_clean] Timeout cache founded, will clean them...");
+                    let mut pp_beatmap_cache = caches.pp_beatmap_cache.write().await;
+                    for k in ready_to_clean {
+                        pp_beatmap_cache.remove(&k);
+                    }
+                }
+                debug!(
+                    "[auto_cache_clean] task done, time spent: {:?}",
+                    start.elapsed()
+                );
+            }
+        });
+    }
+
+    #[cfg(feature = "peace")]
+    #[inline(always)]
+    /// Auto pp recalculate (When pp calculation fails, join the queue and try to recalculate)
+    pub async fn start_auto_pp_recalculate(&self, interval: u64, max_retry: i32) {
+        let duration = Duration::from_secs(interval);
+        let database = self.glob.database.clone();
+        let glob = self.glob.clone();
+        tokio::task::spawn(async move {
+            loop {
+                debug!("[auto_pp_recalculate] task started...");
+                let mut process: i32 = 0;
+                let mut success: i32 = 0;
+                let mut failed: i32 = 0;
+                let start = Instant::now();
+                // Try get tasks from redis
+                let keys: Option<Vec<String>> = match database.redis.query("KEYS", "calc:*").await {
+                    Ok(k) => Some(k),
+                    Err(err) => {
+                        error!(
+                            "[auto_pp_recalculate] Failed to get redis keys, err: {:?}",
+                            err
+                        );
+                        None
+                    }
+                };
+                if let Some(keys) = keys {
+                    let total = keys.len();
+                    if total > 0 {
+                        debug!(
+                            "[auto_pp_recalculate] {} task founded! start recalculate!",
+                            keys.len()
+                        );
+                        for key in keys {
+                            process += 1;
+                            debug!("[auto_pp_recalculate] task{}/{}: {}", process, total, key);
+
+                            let k = key.split(":").collect::<Vec<&str>>();
+                            if k.len() != 4 {
+                                warn!(
+                                    "[auto_pp_recalculate] Invalid key(key length): {}, remove it;",
+                                    key
+                                );
+                                failed += 1;
+                                let _ = database.redis.del(key).await;
+                                continue;
+                            };
+
+                            // Get key info
+                            let table = k[1];
+                            let score_id = match k[2].parse::<i64>() {
+                                Ok(i) => i,
+                                Err(err) => {
+                                    warn!("[auto_pp_recalculate] Invalid key(score_id): {}, remove it; err: {:?}", key, err);
+                                    failed += 1;
+                                    let _ = database.redis.del(key).await;
+                                    continue;
+                                }
+                            };
+                            let _player_id = match k[3].parse::<i32>() {
+                                Ok(i) => i,
+                                Err(err) => {
+                                    warn!("[auto_pp_recalculate] Invalid key(player_id): {}, remove it; err: {:?}", key, err);
+                                    failed += 1;
+                                    let _ = database.redis.del(key).await;
+                                    continue;
+                                }
+                            };
+
+                            // Get key data
+                            let s = match database.redis.get::<String, _>(&key).await {
+                                Ok(s) => s,
+                                Err(err) => {
+                                    warn!("[auto_pp_recalculate] Invalid key(data): {}, remove it; err: {:?}", key, err);
+                                    failed += 1;
+                                    let _ = database.redis.del(key).await;
+                                    continue;
+                                }
+                            };
+                            let values = s.split(":").collect::<Vec<&str>>();
+                            if values.len() != 2 {
+                                warn!("[auto_pp_recalculate] Invalid key(values length): {}, remove it", key);
+                                failed += 1;
+                                let _ = database.redis.del(key).await;
+                                continue;
+                            }
+                            let try_count = match values[0].parse::<i32>() {
+                                Ok(i) => i,
+                                Err(err) => {
+                                    warn!("[auto_pp_recalculate] Invalid key(try_count): {}, remove it; err: {:?}", key, err);
+                                    failed += 1;
+                                    let _ = database.redis.del(key).await;
+                                    continue;
+                                }
+                            };
+                            if try_count >= max_retry {
+                                warn!(
+                                    "[auto_pp_recalculate] key {} over max_retry, remove it;",
+                                    key
+                                );
+                                failed += 1;
+                                let _ = database.redis.del(key).await;
+                                continue;
+                            };
+                            let data = match Query::<CalcData>::from_query(values[1]) {
+                                Ok(Query(d)) => d,
+                                Err(err) => {
+                                    warn!("[auto_pp_recalculate] Invalid key(calc data parse): {}, remove it; err: {:?}", key, err);
+                                    failed += 1;
+                                    let _ = database.redis.del(key).await;
+                                    continue;
+                                }
+                            };
+
+                            // get beatmap
+                            let beatmap = match calculator::get_beatmap(
+                                data.md5.clone(),
+                                data.bid,
+                                data.sid,
+                                data.file_name.clone(),
+                                &glob,
+                            )
+                            .await
+                            {
+                                Some(b) => b,
+                                None => {
+                                    warn!("[auto_pp_recalculate] Failed to get beatmap, key: {}, data: {:?}; try_count: {}", key, data, try_count);
+                                    failed += 1;
+                                    let _ = database
+                                        .redis
+                                        .set(&key, format!("{}:{}", try_count + 1, values[1]))
+                                        .await;
+                                    continue;
+                                }
+                            };
+                            // calculate.
+                            let r = calculator::calculate_pp(&beatmap, &data).await;
+
+                            // Save it
+                            match database.pg.execute(
+                                &format!("UPDATE \"game_scores\".\"{}\" SET pp_v2 = $1, pp_v2_raw = $2, stars = $3 WHERE \"id\" = $4", table), &[
+                                &r.pp(), &serde_json::json!({
+                                    "aim": r.raw.aim,
+                                    "spd": r.raw.spd,
+                                    "str": r.raw.str,
+                                    "acc": r.raw.acc,
+                                    "total": r.raw.total,
+                                }), &r.stars(), &score_id
+                            ]).await {
+                                Ok(_) => {
+                                    debug!("[auto_pp_recalculate] key {} calculate done", key);
+                                    success += 1;
+                                    let _ = database.redis.del(key).await;
+                                    // TODO: Tell peace to update the status of this player
+                                    continue;
+                                },
+                                Err(err) => {
+                                    error!("[auto_pp_recalculate] Failed to save calculate result, key: {}, err: {:?}", key, err);
+                                    failed += 1;
+                                    let _ = database
+                                        .redis
+                                        .set(&key, format!("{}:{}", try_count + 1, values[1]))
+                                        .await;
+                                    continue;
+                                }
+                            };
+                        }
+                        info!(
+                            "[auto_pp_recalculate] task done, time spent: {:?}; success({}) / total({}) failed({})",
+                            start.elapsed(), success, process, failed
+                        );
+                    }
+                };
+                tokio::time::delay_for(duration).await;
+            }
+        });
     }
 
     /// Server started

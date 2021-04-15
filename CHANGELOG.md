@@ -2,6 +2,11 @@
 
 - No changes so far
 
+# v0.2.4
+
+- Add auto pp recalculate (for peace)
+- If pp calculation fails (such as restarting pp-server), just save task to redis in the format of "`calc:{table(mode)}:{score_id}:{player_id}`":"`md5=xxx&mods=xx&mode=xx&n300=xx`". pp-server will auto recalculate these tasks, and notify peace to update the stats of these players.
+
 # v0.2.3
 
 - Add no_miss option, (additional) calculate score pp if no miss.
