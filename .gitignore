@@ -1,3 +1,5 @@
 /target
 *.lock
 .data
+example_data/beatmaps/*
+!!example_data/beatmaps/ccb1f31b5eeaf26d40f8c905293efc03.osu
