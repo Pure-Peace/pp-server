@@ -1,4 +1,6 @@
 /target
+**/target
+
 *.lock
 .data
 example_data/beatmaps/*

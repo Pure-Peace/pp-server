@@ -1,30 +1,12 @@
 use actix_web::web::Data;
-use async_std::{fs::File as AsyncFile, sync::RwLock};
+use async_std::fs::File as AsyncFile;
 use colored::Colorize;
-use indicatif::{ProgressBar, ProgressStyle};
-use md5::{Digest, Md5};
 use peace_performance::Beatmap as PPbeatmap;
-use serde::de::{Deserialize, Deserializer};
-use std::fmt::Display;
-use std::str::FromStr;
-use std::{cmp::min, path::Path};
+use std::cmp::min;
+use std::time::Instant;
 use std::{fs, io};
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    time::Instant,
-};
 
 use crate::objects::{Caches, PPbeatmapCache};
-use crate::settings::model::Settings;
-
-#[inline(always)]
-pub fn safe_string(mut s: String) -> String {
-    for i in r#":\*></?"|.,()[]{}!@#$%^&-_=+~`"#.chars() {
-        s = s.replace(i, "");
-    }
-    s
-}
 
 #[inline(always)]
 pub fn check_is_osu_file(entry: &Result<fs::DirEntry, io::Error>) -> u8 {
@@ -45,33 +27,6 @@ pub fn check_is_osu_file(entry: &Result<fs::DirEntry, io::Error>) -> u8 {
         return 3;
     };
     1
-}
-
-#[inline(always)]
-pub fn lock_wrapper<T>(obj: T) -> Data<RwLock<T>> {
-    Data::new(RwLock::new(obj))
-}
-
-#[inline(always)]
-pub fn calc_file_md5<P: AsRef<Path>>(path: P) -> Result<String, io::Error> {
-    let file = File::open(path)?;
-    let mut hasher = Md5::new();
-    let mut buffer = [0; 8192];
-    let mut reader = BufReader::new(file);
-    while let Ok(size) = reader.read(&mut buffer) {
-        if size == 0 {
-            break;
-        };
-        hasher.update(&buffer[..size]);
-    }
-    Ok(format!("{:x}", hasher.finalize()))
-}
-
-#[inline(always)]
-pub fn progress_bar(total: u64) -> ProgressBar {
-    let bar = ProgressBar::new(total);
-    bar.set_style(ProgressStyle::default_bar().template("{spinner:.green} [{elapsed_precise}] [{bar:40.green/white} ]{pos:>7}/{len:7} ({eta})").progress_chars("#>-"));
-    bar
 }
 
 #[inline(always)]
@@ -97,15 +52,13 @@ pub fn listing_osu_files(osu_files_dir: &String) -> (Vec<Option<fs::DirEntry>>, 
 }
 
 #[inline(always)]
-pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
-    let osu_files_dir = &config.osu_files_dir;
-    let max_load = config.beatmap_cache_max;
+pub async fn preload_osu_files(osu_files_dir: &String, max_load: i32, caches: &Data<Caches>) {
     let (entries, total) = listing_osu_files(osu_files_dir);
     if total > 9000 && max_load > 9000 {
         println!("{}", "WARNING: Your will preload > 9000 beatmaps, loading them into memory may cause insufficient memory or even system crashes.".red())
     };
     println!("\n  Preloading .osu files into Memory...");
-    let bar = progress_bar(min(max_load, total as i32) as u64);
+    let bar = peace_utils::common::progress_bar(min(max_load, total as i32) as u64);
     let mut success = 0;
     let start = Instant::now();
     let mut pp_beatmap_cache = caches.pp_beatmap_cache.write().await;
@@ -148,18 +101,18 @@ pub async fn preload_osu_files(config: &Settings, caches: &Data<Caches>) {
 }
 
 #[inline(always)]
-pub fn recalculate_osu_file_md5(osu_files_dir: String) {
+pub fn recalculate_osu_file_md5(osu_files_dir: &String) {
     let mut renamed = 0;
     let mut done = 0;
     let mut error = 0;
-    let (entries, total) = listing_osu_files(&osu_files_dir);
+    let (entries, total) = listing_osu_files(osu_files_dir);
     println!("\n  Recalculating MD5 file names...");
-    let bar = progress_bar(total as u64);
+    let bar = peace_utils::common::progress_bar(total as u64);
     let start = Instant::now();
     for entry in entries {
         bar.inc(1);
         if let Some(entry) = entry {
-            let md5 = match calc_file_md5(entry.path()) {
+            let md5 = match peace_utils::async_file::calc_file_md5(entry.path()) {
                 Ok(md5) => md5,
                 Err(_) => {
                     error += 1;
@@ -190,55 +143,15 @@ pub fn recalculate_osu_file_md5(osu_files_dir: String) {
 }
 
 #[inline(always)]
-pub fn checking_osu_dir(data: &Settings) {
-    if data.osu_files_dir == "" {
+pub fn checking_osu_dir(osu_files_dir: &String, recalculate_md5: bool) {
+    if osu_files_dir == "" {
         println!(
             "{}",
             "> [Error] Please add .osu files dir in pp-server-config!!!\n"
                 .bold()
                 .red()
         );
-    } else if data.recalculate_osu_file_md5 {
-        recalculate_osu_file_md5(data.osu_files_dir.clone());
+    } else if recalculate_md5 {
+        recalculate_osu_file_md5(osu_files_dir);
     };
-}
-
-#[inline(always)]
-pub fn safe_file_name(mut s: String) -> String {
-    for i in r#":\*></?"|"#.chars() {
-        s = s.replace(i, "");
-    }
-    s
-}
-
-#[inline(always)]
-pub fn from_str_optional<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
-where
-    T: FromStr,
-    T::Err: Display,
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer);
-    if s.is_err() {
-        return Ok(None);
-    };
-    Ok(match T::from_str(&s.unwrap()) {
-        Ok(t) => Some(t),
-        Err(_) => None,
-    })
-}
-
-#[inline(always)]
-pub fn from_str_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let de = String::deserialize(deserializer);
-    if de.is_err() {
-        return Ok(false);
-    };
-    match de.unwrap().as_str() {
-        "1" => Ok(true),
-        _ => Ok(false),
-    }
 }

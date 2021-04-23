@@ -5,11 +5,11 @@ mod default;
 use actix_web::dev::HttpServiceFactory;
 use actix_web::web::{scope, ServiceConfig};
 
-use crate::settings::model::Settings;
+use crate::settings::model::LocalConfigData;
 
 /// Function that will be called on new Application to configure routes for this module
 /// Initial all routes
-pub fn init(cfg: &mut ServiceConfig, settings: &Settings) {
+pub fn init(cfg: &mut ServiceConfig, settings: &LocalConfigData) {
     init_default(cfg);
     cfg.service(init_api());
 

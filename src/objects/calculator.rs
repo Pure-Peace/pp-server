@@ -1,13 +1,14 @@
 use crate::objects::caches::{Caches, PPbeatmapCache};
-use crate::objects::Beatmap;
 use crate::Glob;
 use actix_web::web::Data;
 use async_std::fs::File;
 use bytes::Bytes;
-use peace_performance::{AnyPP, Beatmap as PPbeatmap, FruitsPP, ManiaPP, OsuPP, PpResult, TaikoPP};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{cmp::PartialEq, time::Instant};
+
+use peace_objects::beatmaps::traits::{BeatmapCacheStorage, MyBeatmapCache};
+use peace_performance::{AnyPP, Beatmap as PPbeatmap, FruitsPP, ManiaPP, OsuPP, PpResult, TaikoPP};
 
 #[derive(PartialEq)]
 pub enum GetBeatmapError {
@@ -150,11 +151,15 @@ pub async fn get_beatmap(
     file_name: Option<String>,
     glob: &Glob,
 ) -> Option<Data<PPbeatmap>> {
-    let b = glob.caches.get_beatmap(md5.as_ref(), bid).await;
+    let b = glob
+        .caches
+        .beatmap_cache
+        .get(md5.as_ref(), bid, sid, file_name.as_ref())
+        .await;
     if let Some(b) = b {
-        #[cfg(feature = "peace")]
-        let expire = glob.config.read().await.timeout_beatmap_cache;
-        #[cfg(not(feature = "peace"))]
+        #[cfg(feature = "with_peace")]
+        let expire = glob.config.read().await.data.beatmaps.cache_expires;
+        #[cfg(not(feature = "with_peace"))]
         let expire = glob.local_config.data.beatmap_cache_timeout as i64;
 
         if !b.is_expired(expire) {
@@ -246,16 +251,36 @@ pub async fn get_beatmap_from_api(
 ) -> Option<Data<PPbeatmap>> {
     let start = Instant::now();
     let bid = if bid.is_none() {
-        Beatmap::get(request_md5, None, sid, file_name, &glob, true)
-            .await?
-            .id
+        #[cfg(feature = "with_peace")]
+        let expires = glob.config.read().await.data.beatmaps.cache_expires;
+        #[cfg(feature = "with_peace")]
+        let osu_api = glob.osu_api.read().await;
+
+        #[cfg(not(feature = "with_peace"))]
+        let expires = glob.local_config.data.beatmap_cache_timeout as i64;
+        #[cfg(not(feature = "with_peace"))]
+        let osu_api = &glob.osu_api;
+        peace_objects::beatmaps::Beatmap::get(
+            request_md5,
+            None,
+            sid,
+            file_name,
+            &osu_api,
+            #[cfg(feature = "with_peace")]
+            &glob.database,
+            true,
+            &glob.caches.beatmap_cache,
+            expires,
+        )
+        .await?
+        .id
     } else {
         bid.unwrap()
     };
     // Download beatmap, and try parse it
-    #[cfg(feature = "peace")]
+    #[cfg(feature = "with_peace")]
     let osu_api = glob.osu_api.read().await;
-    #[cfg(not(feature = "peace"))]
+    #[cfg(not(feature = "with_peace"))]
     let osu_api = &glob.osu_api;
 
     let (b, new_md5, bytes) = match osu_api.get_pp_beatmap(bid).await {

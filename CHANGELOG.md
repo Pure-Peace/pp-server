@@ -2,6 +2,10 @@
 
 - No changes so far
 
+# v0.3.0
+
+- Big refactor, improved code reuse, and more.
+
 # v0.2.4
 
 - Add auto pp recalculate (for peace)

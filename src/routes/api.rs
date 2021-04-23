@@ -1,4 +1,3 @@
-use crate::utils;
 use crate::Glob;
 use actix_web::HttpResponse;
 use actix_web::{get, web::Data};
@@ -70,7 +69,7 @@ pub async fn calculate_pp(req: HttpRequest, glob: Data<Glob>) -> HttpResponse {
             return failed(0, "invalid md5");
         }
         // Safe it
-        *md5 = utils::safe_string(md5.clone());
+        *md5 = peace_utils::common::safe_string(md5.clone());
     };
 
     // get beatmap

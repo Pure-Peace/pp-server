@@ -1,6 +1,6 @@
 [package]
 name = "pp-server"
-version = "0.2.4"
+version = "0.3.2"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"
@@ -8,15 +8,15 @@ repository = "https://github.com/pure-peace/pp-server"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-default = ["peace"]
+# default = ["peace-objects/no_database"] # Not use peace database, run pp-server independently.
+default = ["with_peace"] # Works with peace, including peace database
 
-peace = [
+with_peace = [
     "deadpool-postgres",
     "deadpool-redis",
-    "postgres-types",
-    "tokio-pg-mapper",
-    "tokio-pg-mapper-derive",
     "tokio-postgres",
+    "peace-database",
+    "peace-objects/with_peace",
 ]
 
 [dependencies]
@@ -25,35 +25,37 @@ actix-web = "3.1.0"
 actix-web-prom = "0.5.1"
 askama = "0.10.5"
 async-std = "1.9.0"
-colored = "2.0.0"
+bytes = "0.5.6"
 chrono = "0.4.19"
+colored = "2.0.0"
 config = "0.10.1"
+derivative = "2.2.0"
 dotenv = "0.15.0"
 env_logger = "0.8.3"
+field_names = "0.1.1"
 hashbrown = "0.9.1"
-indicatif = "0.15.0"
+json = "0.12.4"
 log = "0.4.14"
-md-5 = "0.9.1"
-peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
 prometheus = { version = "0.11.0", features = ["process"] }
 reqwest = { version = "0.10.10", features = ["rustls-tls", "json"], default-features = false }
 serde = { version = "1.0.124", features = ["derive"] }
 serde_json = "1.0.64"
-derivative = "2.2.0"
-json = "0.12.4"
-bytes = "0.5.6"
 serde_str = "0.1.0"
-field_names = "0.1.1"
 tokio = { version = "0.2" }
 
 
 # Feature peace
 deadpool-postgres = { version = "0.5.6", optional = true }
 deadpool-redis = { version = "0.6.1", optional = true }
-postgres-types = { version = "0.1.2", features = ["derive", "with-chrono-0_4", "with-serde_json-1"], optional = true }
-tokio-pg-mapper = { version = "0.1.8", optional = true }
-tokio-pg-mapper-derive = { version = "0.1.5", optional = true }
 tokio-postgres = { version = "0.5.5", features = ["with-chrono-0_4", "with-serde_json-1"], optional = true }
+
+peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
+
+peace-constants = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
+peace-database = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["with_peace"], optional = true }
+peace-objects = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
+peace-settings = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
+peace-utils = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["web", "actix_web", "async_file"] }
 
 
 # link-time-optimization

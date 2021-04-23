@@ -1,18 +1,20 @@
-use crate::objects::calculator::{self, CalcData};
 use crate::Glob;
 use actix_cors::Cors;
-use actix_web::web::Query;
-use actix_web::{dev::Server, middleware::Logger, web::Data, App, HttpServer};
+use actix_web::{dev::Server, web::Data, App, HttpServer};
 use async_std::channel::{unbounded, Receiver, Sender};
 use chrono::Local;
+use colored::Colorize;
 use std::time::{Duration, Instant};
 
-use colored::Colorize;
+#[cfg(feature = "with_peace")]
+use crate::objects::calculator::{self, CalcData};
+#[cfg(feature = "with_peace")]
+use actix_web::web::Query;
 
 use actix_web_prom::PrometheusMetrics;
 use prometheus::{opts, IntCounterVec};
 
-use crate::settings::model::Settings;
+use crate::settings::model::LocalConfigData;
 use crate::{routes, utils};
 
 pub struct PPserver {
@@ -56,14 +58,20 @@ impl PPserver {
         info!("{}", "Starting http server...".bold().bright_blue());
         let server = {
             let glob_cloned = self.glob.clone();
-            let settings_cloned = self.glob.local_config.data.clone();
+            let s = self.glob.local_config.data.clone();
             let counter = self.counter.clone();
             let sender = Data::new(self.sender.clone());
             let prom = self.prometheus.clone();
             HttpServer::new(move || {
                 // App
                 App::new()
-                    .wrap(Self::make_logger(&settings_cloned))
+                    .wrap(peace_utils::web::make_logger(
+                        &s.logger.actix_log_format,
+                        s.prom.exclude_endpoint_log,
+                        &s.prom.endpoint,
+                        &s.logger.exclude_endpoints,
+                        &s.logger.exclude_endpoints_regex,
+                    ))
                     .wrap(prom.clone())
                     .wrap(
                         Cors::default()
@@ -75,7 +83,7 @@ impl PPserver {
                     .app_data(sender.clone())
                     .app_data(glob_cloned.clone())
                     .data(counter.clone())
-                    .configure(|service_cfg| routes::init(service_cfg, &settings_cloned))
+                    .configure(|service_cfg| routes::init(service_cfg, &s))
             })
             .shutdown_timeout(2)
             .keep_alive(120)
@@ -91,12 +99,17 @@ impl PPserver {
         let config = &self.glob.local_config.data;
         // Should preload or not
         if config.preload_osu_files {
-            utils::preload_osu_files(config, &self.glob.caches).await;
+            utils::preload_osu_files(
+                &config.osu_files_dir,
+                config.beatmap_cache_max,
+                &self.glob.caches,
+            )
+            .await;
         };
 
         self.start_auto_cache_clean(config.auto_clean_interval, config.beatmap_cache_timeout)
             .await;
-        #[cfg(feature = "peace")]
+        #[cfg(feature = "with_peace")]
         self.start_auto_pp_recalculate(
             config.auto_pp_recalculate.interval,
             config.auto_pp_recalculate.max_retry,
@@ -147,7 +160,7 @@ impl PPserver {
         });
     }
 
-    #[cfg(feature = "peace")]
+    #[cfg(feature = "with_peace")]
     #[inline(always)]
     /// Auto pp recalculate (When pp calculation fails, join the queue and try to recalculate)
     pub async fn start_auto_pp_recalculate(&self, interval: u64, max_retry: i32) {
@@ -358,22 +371,7 @@ impl PPserver {
         err
     }
 
-    pub fn make_logger(s: &Settings) -> Logger {
-        let format = &s.logger.actix_log_format;
-        let mut logger = match s.prom.exclude_endpoint_log {
-            true => Logger::new(format).exclude(&s.prom.endpoint),
-            false => Logger::new(format),
-        };
-        for i in s.logger.exclude_endpoints.iter() {
-            logger = logger.exclude(i as &str);
-        }
-        for i in s.logger.exclude_endpoints_regex.iter() {
-            logger = logger.exclude_regex(i as &str);
-        }
-        logger
-    }
-
-    pub fn prom_init(addr: &String, sets: &Settings) -> (PrometheusMetrics, IntCounterVec) {
+    pub fn prom_init(addr: &String, sets: &LocalConfigData) -> (PrometheusMetrics, IntCounterVec) {
         // Ready prometheus
         println!(
             "> {}",

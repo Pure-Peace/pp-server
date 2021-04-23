@@ -1,14 +1,6 @@
-#![allow(dead_code)]
-extern crate config;
-
 #[macro_use]
 extern crate log;
 
-pub mod constants;
-#[cfg(feature = "peace")]
-pub mod database;
-#[cfg(feature = "peace")]
-use database::Database;
 
 pub mod objects;
 pub mod renders;
@@ -18,22 +10,27 @@ pub mod utils;
 
 use actix_web::web::Data;
 use objects::{glob::Glob, PPserver};
-use settings::model::LocalConfig;
 
 #[actix_web::main]
 async fn main() {
     // Create local settings
-    let local_config = LocalConfig::init();
+    let cfg = settings::LocalConfig::init();
 
-    #[cfg(feature = "peace")]
+    #[cfg(feature = "with_peace")]
     // Create database object includes postgres and redis pool
-    let database = Database::new(&local_config).await;
+    let database = peace_database::Database::new(
+        &cfg.data.postgres,
+        &cfg.data.redis,
+        cfg.data.check_db_version_on_created,
+        cfg.data.check_pools_on_created,
+    )
+    .await;
 
     // Create Glob object
     let glob = Data::new(
         Glob::init(
-            &local_config,
-            #[cfg(feature = "peace")]
+            &cfg,
+            #[cfg(feature = "with_peace")]
             &database,
         )
         .await,
