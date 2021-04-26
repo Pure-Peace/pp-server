@@ -343,7 +343,7 @@ impl PPserver {
                     glob.peace_api
                         .post(
                             "api/v1",
-                            serde_json::json!({ "player_and_mode": update_user_tasks }),
+                            &serde_json::json!({ "player_and_mode": update_user_tasks }),
                         )
                         .await;
                     debug!(
