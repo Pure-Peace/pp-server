@@ -129,7 +129,6 @@ impl PPserver {
         async_std::task::spawn(async move {
             loop {
                 async_std::task::sleep(duration).await;
-                debug!("[auto_cache_clean] task started...");
                 let start = Instant::now();
                 let mut ready_to_clean = Vec::new();
                 let now = Local::now().timestamp();
@@ -169,7 +168,6 @@ impl PPserver {
         let glob = self.glob.clone();
         tokio::task::spawn(async move {
             loop {
-                debug!("[auto_pp_recalculate] task started...");
                 let mut process: i32 = 0;
                 let mut failed: i32 = 0;
                 let mut update_user_tasks = Vec::new();
