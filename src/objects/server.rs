@@ -253,10 +253,7 @@ impl PPserver {
                                 }
                             };
                             if try_count >= max_retry {
-                                warn!(
-                                    "[auto_pp_recalculate] key {} over max_retry, skip it;",
-                                    key
-                                );
+                                warn!("[auto_pp_recalculate] key {} over max_retry, skip it;", key);
                                 // failed += 1;
                                 process -= 1;
                                 // Don't remove, we should check why
@@ -298,8 +295,8 @@ impl PPserver {
                             let r = calculator::calculate_pp(&beatmap, &data).await;
 
                             // Save it
-                            match database.pg.execute(
-                                &format!("UPDATE \"game_scores\".\"{}\" SET pp_v2 = $1, pp_v2_raw = $2, stars = $3 WHERE \"id\" = $4", table), &[
+                            match database.pg.query_first(
+                                &format!(r#"UPDATE "game_scores"."{}" SET pp_v2 = $1, pp_v2_raw = $2, stars = $3 WHERE "id" = $4 RETURNING "status", "map_md5""#, table), &[
                                 &r.pp(), &serde_json::json!({
                                     "aim": r.raw.aim,
                                     "spd": r.raw.spd,
@@ -308,31 +305,64 @@ impl PPserver {
                                     "total": r.raw.total,
                                 }), &r.stars(), &score_id
                             ]).await {
-                                Ok(_) => {
-                                    debug!("[auto_pp_recalculate] key {} calculate done", key);
+                                Ok(row) => {
                                     let mode_val = data.mode.unwrap_or(0);
                                     let mode = peace_constants::GameMode::parse(mode_val).unwrap();
-                                    match peace_utils::peace::player_calculate_pp_acc(player_id, &mode.full_name(), &database).await {
-                                        Some(result) => {
-                                            if peace_utils::peace::player_save_pp_acc(player_id, &mode, result.pp, result.acc, &database).await {
-                                                let update_info = peace_constants::api::UpdateUserTask {
-                                                    player_id,
-                                                    mode: mode_val,
-                                                    recalc: false
-                                                };
-                                                // Prevent repeated update the same user in the same mode
-                                                if !update_user_tasks.contains(&update_info) {
-                                                    update_user_tasks.push(update_info);
+
+                                    let status = row.get::<'_, _, i16>("status");
+                                    let map_md5 = row.get::<'_, _, String>("map_md5");
+                                    // PassedAndTop
+                                    let status = if status == 1 {
+                                        match database.pg.execute(
+                                            &format!(
+                                            r#"UPDATE "game_scores"."{}" SET "status" = 1 WHERE 
+                                                user_id = $1 AND 
+                                                "map_md5" = $2 AND 
+                                                "status" = 2 AND
+                                                pp_v2 <= $3"#, table), &[
+                                            &player_id, &map_md5, &r.pp
+                                        ]).await {
+                                            Ok(updated) => {
+                                                if updated > 0 {
+                                                    let _ = database.pg.execute(&format!(r#"UPDATE "game_scores"."{}" SET "status" = 2 WHERE "id" = $1"#, table), &[&score_id]).await;
+                                                    let _ = glob.peace_api.simple_get(&format!("api/v1/recreate_score_table/{}/{}", &map_md5, mode_val)).await;
+                                                    2
+                                                } else {
+                                                    status
                                                 }
-                                            } else {
-                                                error!("[auto_pp_recalculate] Failed to save player {} pp and acc!", player_id)
+                                            },
+                                            Err(err) => {
+                                                error!("[auto_pp_recalculate] Failed to update scores status, err: {:?}; map_md5: {}, user_id: {}", err, map_md5, player_id);
+                                                0
                                             }
-                                        },
-                                        None => error!("[auto_pp_recalculate] Failed to calculate player {} pp and acc!", player_id)
+                                        }
+                                    } else {
+                                        status
                                     };
-                                    
+                                    if status == 2 {
+                                        match peace_utils::peace::player_calculate_pp_acc(player_id, &mode.full_name(), &database).await {
+                                            Some(result) => {
+                                                if peace_utils::peace::player_save_pp_acc(player_id, &mode, result.pp, result.acc, &database).await {
+                                                    let update_info = peace_constants::api::UpdateUserTask {
+                                                        player_id,
+                                                        mode: mode_val,
+                                                        recalc: false
+                                                    };
+                                                    // Prevent repeated update the same user in the same mode
+                                                    if !update_user_tasks.contains(&update_info) {
+                                                        update_user_tasks.push(update_info);
+                                                    }
+                                                } else {
+                                                    error!("[auto_pp_recalculate] Failed to save player {} pp and acc!", player_id)
+                                                }
+                                            },
+                                            None => error!("[auto_pp_recalculate] Failed to calculate player {} pp and acc!", player_id)
+                                        };
+                                    };
+                                    debug!("[auto_pp_recalculate] key {} calculate done", key);
                                     // Remove this recalc task from redis
                                     let _ = database.redis.del(key).await;
+
                                     continue;
                                 },
                                 Err(err) => {
@@ -357,10 +387,7 @@ impl PPserver {
                     debug!("[auto_pp_recalculate] send peace to update these users...");
                     let start = Instant::now();
                     glob.peace_api
-                        .post(
-                            "api/v1/update_user_stats",
-                            &update_user_tasks,
-                        )
+                        .post("api/v1/update_user_stats", &update_user_tasks)
                         .await;
                     debug!(
                         "[auto_pp_recalculate] done! time spent: {:?}",
