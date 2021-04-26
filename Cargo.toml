@@ -54,7 +54,7 @@ peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git
 
 peace-constants = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
 peace-database = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["with_peace"], optional = true }
-peace-objects = { version = "0.6.1", git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
+peace-objects = { version = "0.6.2", git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
 peace-settings = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
 peace-utils = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["web", "actix_web", "async_file"] }
 
