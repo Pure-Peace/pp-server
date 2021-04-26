@@ -150,11 +150,11 @@ impl PPserver {
                     for k in ready_to_clean {
                         pp_beatmap_cache.remove(&k);
                     }
+                    debug!(
+                        "[auto_cache_clean] task done, time spent: {:?}",
+                        start.elapsed()
+                    );
                 }
-                debug!(
-                    "[auto_cache_clean] task done, time spent: {:?}",
-                    start.elapsed()
-                );
             }
         });
     }
@@ -254,11 +254,13 @@ impl PPserver {
                             };
                             if try_count >= max_retry {
                                 warn!(
-                                    "[auto_pp_recalculate] key {} over max_retry, remove it;",
+                                    "[auto_pp_recalculate] key {} over max_retry, skip it;",
                                     key
                                 );
-                                failed += 1;
-                                let _ = database.redis.del(key).await;
+                                // failed += 1;
+                                process -= 1;
+                                // Don't remove, we should check why
+                                // let _ = database.redis.del(key).await;
                                 continue;
                             };
                             let data = match Query::<CalcData>::from_query(values[1]) {
@@ -308,11 +310,27 @@ impl PPserver {
                             ]).await {
                                 Ok(_) => {
                                     debug!("[auto_pp_recalculate] key {} calculate done", key);
-                                    let update_info = (player_id, data.mode.unwrap_or(0));
-                                    // Prevent repeated update the same user in the same mode
-                                    if !update_user_tasks.contains(&update_info) {
-                                        update_user_tasks.push(update_info);
-                                    }
+                                    let mode_val = data.mode.unwrap_or(0);
+                                    let mode = peace_constants::GameMode::parse(mode_val).unwrap();
+                                    match peace_utils::peace::player_calculate_pp_acc(player_id, &mode.full_name(), &database).await {
+                                        Some(result) => {
+                                            if peace_utils::peace::player_save_pp_acc(player_id, &mode, result.pp, result.acc, &database).await {
+                                                let update_info = peace_constants::api::UpdateUserTask {
+                                                    player_id,
+                                                    mode: mode_val,
+                                                    recalc: false
+                                                };
+                                                // Prevent repeated update the same user in the same mode
+                                                if !update_user_tasks.contains(&update_info) {
+                                                    update_user_tasks.push(update_info);
+                                                }
+                                            } else {
+                                                error!("[auto_pp_recalculate] Failed to save player {} pp and acc!", player_id)
+                                            }
+                                        },
+                                        None => error!("[auto_pp_recalculate] Failed to calculate player {} pp and acc!", player_id)
+                                    };
+                                    
                                     // Remove this recalc task from redis
                                     let _ = database.redis.del(key).await;
                                     continue;
@@ -340,8 +358,8 @@ impl PPserver {
                     let start = Instant::now();
                     glob.peace_api
                         .post(
-                            "api/v1",
-                            &serde_json::json!({ "player_and_mode": update_user_tasks }),
+                            "api/v1/update_user_stats",
+                            &update_user_tasks,
                         )
                         .await;
                     debug!(
