@@ -1,6 +1,6 @@
 [package]
 name = "pp-server"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"
@@ -17,6 +17,7 @@ with_peace = [
     "tokio-postgres",
     "peace-database",
     "peace-objects/with_peace",
+    "peace-objects/peace_api",
 ]
 
 [dependencies]
@@ -53,7 +54,7 @@ peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git
 
 peace-constants = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
 peace-database = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["with_peace"], optional = true }
-peace-objects = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
+peace-objects = { version = "0.6.1", git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
 peace-settings = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
 peace-utils = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["web", "actix_web", "async_file"] }
 

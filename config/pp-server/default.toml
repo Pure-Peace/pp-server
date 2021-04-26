@@ -19,7 +19,7 @@ auto_clean_interval = 300
 
 # Set peace_key in the pp server to the same value as here
 peace_key = "pp_server"
-peace_url = "http://127.0.0.1:8080"
+peace_url = "http://127.0.0.1:8080" # without last "/"
 
 # pp server config
 [server]

@@ -171,8 +171,8 @@ impl PPserver {
             loop {
                 debug!("[auto_pp_recalculate] task started...");
                 let mut process: i32 = 0;
-                let mut success: i32 = 0;
                 let mut failed: i32 = 0;
+                let mut update_user_tasks = Vec::new();
                 let start = Instant::now();
                 // Try get tasks from redis
                 let keys: Option<Vec<String>> = match database.redis.query("KEYS", "calc:*").await {
@@ -218,7 +218,7 @@ impl PPserver {
                                     continue;
                                 }
                             };
-                            let _player_id = match k[3].parse::<i32>() {
+                            let player_id = match k[3].parse::<i32>() {
                                 Ok(i) => i,
                                 Err(err) => {
                                     warn!("[auto_pp_recalculate] Invalid key(player_id): {}, remove it; err: {:?}", key, err);
@@ -310,9 +310,13 @@ impl PPserver {
                             ]).await {
                                 Ok(_) => {
                                     debug!("[auto_pp_recalculate] key {} calculate done", key);
-                                    success += 1;
+                                    let update_info = (player_id, data.mode.unwrap_or(0));
+                                    // Prevent repeated update the same user in the same mode
+                                    if !update_user_tasks.contains(&update_info) {
+                                        update_user_tasks.push(update_info);
+                                    }
+                                    // Remove this recalc task from redis
                                     let _ = database.redis.del(key).await;
-                                    // TODO: Tell peace to update the status of this player
                                     continue;
                                 },
                                 Err(err) => {
@@ -328,10 +332,25 @@ impl PPserver {
                         }
                         info!(
                             "[auto_pp_recalculate] task done, time spent: {:?}; success({}) / total({}) failed({})",
-                            start.elapsed(), success, process, failed
+                            start.elapsed(), update_user_tasks.len(), process, failed
                         );
                     }
                 };
+                // If some users should updates, send it to peace
+                if update_user_tasks.len() > 0 {
+                    debug!("[auto_pp_recalculate] send peace to update these users...");
+                    let start = Instant::now();
+                    glob.peace_api
+                        .post(
+                            "api/v1",
+                            serde_json::json!({ "player_and_mode": update_user_tasks }),
+                        )
+                        .await;
+                    debug!(
+                        "[auto_pp_recalculate] done! time spent: {:?}",
+                        start.elapsed()
+                    );
+                }
                 tokio::time::delay_for(duration).await;
             }
         });
