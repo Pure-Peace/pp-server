@@ -13,6 +13,10 @@ pub struct LocalConfigData {
     pub check_pools_on_created: bool,
     #[cfg(feature = "with_peace")]
     pub check_db_version_on_created: bool,
+    #[cfg(feature = "with_peace")]
+    pub peace_key: String,
+    #[cfg(feature = "with_peace")]
+    pub peace_url: String,
 
     pub env: String,
     pub debug: bool,

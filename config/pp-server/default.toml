@@ -17,8 +17,14 @@ beatmap_cache_timeout = 3600
 auto_clean_cache = true
 auto_clean_interval = 300
 
+# Set peace_key in the pp server to the same value as here
+peace_key = "pp_server"
+peace_url = "http://127.0.0.1:8080"
+
 # pp server config
 [server]
+# It is recommended to set it to 127.0.0.1, 
+# and then use nginx to expose part of the interface
 host = "127.0.0.1"
 port = 8088
 
