@@ -34,7 +34,7 @@ impl LocalConfig {
         let env = peace_settings::local::utils::load_env();
         let cfg = peace_settings::local::utils::load_settings(
             env.clone(),
-            peace_constants::PP_SERVER_LOCAL_CONFIG_DIR,
+            peace_constants::common::PP_SERVER_LOCAL_CONFIG_DIR,
         )?;
         let data: model::LocalConfigData = cfg.clone().try_into()?;
         println!(
