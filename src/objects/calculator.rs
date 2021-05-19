@@ -263,7 +263,6 @@ pub async fn get_beatmap_from_api(
         let expires = glob.local_config.data.beatmap_cache_timeout as i64;
         #[cfg(not(feature = "with_peace"))]
         let osu_api = &glob.osu_api;
-        let a = glob.database.get_ref();
         peace_objects::beatmaps::Beatmap::get(
             request_md5,
             None,
@@ -271,7 +270,7 @@ pub async fn get_beatmap_from_api(
             file_name,
             &osu_api,
             #[cfg(feature = "with_peace")]
-            a,
+            glob.database.get_ref(),
             true,
             &glob.caches.beatmap_cache,
             expires,

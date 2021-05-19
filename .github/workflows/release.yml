@@ -3,7 +3,7 @@ on:
     types: [created]
 
 jobs:
-  build:
+  build-with-peace:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,18 +18,18 @@ jobs:
           override: true
 
       - name: Build
-        run: cargo build --all --release
+        run: cargo build --features with_peace --release --bin pp-server-with-peace
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            target/release/peace
+            target/release/pp-server-with-peace
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-win:
+  build-with-peace-win:
     runs-on: windows-latest
 
     steps:
@@ -44,12 +44,65 @@ jobs:
           override: true
 
       - name: Build
-        run: cargo build --release
+        run: cargo build --features with_peace --release --bin pp-server-with-peace
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: target/release/peace.exe
+          files: |
+            target/release/pp-server-with-peace.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-without-db:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+
+      - name: Build
+        run: cargo build --no-default-features --features peace-objects/no_database --release --bin pp-server-without-db
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            target/release/pp-server-without-db
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-without-db-win:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install latest rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          override: true
+
+      - name: Build
+        run: cargo build --no-default-features --features peace-objects/no_database --release --bin pp-server-without-db
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            target/release/pp-server-without-db.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,10 +1,18 @@
 [package]
 name = "pp-server"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"
 repository = "https://github.com/pure-peace/pp-server"
+
+[[bin]]
+name = "pp-server-with-peace"
+path = "src/main.rs"
+
+[[bin]]
+name = "pp-server-without-db"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
@@ -51,7 +59,7 @@ tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_j
 peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
 
 # Git
-peace-constants = {git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
+peace-constants = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
 peace-database = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["with_peace"], optional = true }
 peace-objects = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
 peace-settings = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
