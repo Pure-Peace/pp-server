@@ -1,14 +1,20 @@
-use crate::Glob;
-use actix_web::HttpResponse;
-use actix_web::{get, web::Data};
-use actix_web::{web::Query, HttpRequest};
-use askama::Template;
-use peace_performance::PpResult;
-use serde_json::json;
-use serde_json::Value::Null;
-use std::time::Instant;
+use {
+    askama::Template,
+    ntex::web::{
+        get,
+        types::{Data, Query},
+        HttpRequest, HttpResponse,
+    },
+    peace_performance::PpResult,
+    serde_json::json,
+    serde_json::Value::Null,
+    std::time::Instant,
+};
 
-use crate::objects::calculator::{self, CalcData};
+use crate::{
+    objects::calculator::{self, CalcData},
+    Glob,
+};
 
 /// GET "/api"
 #[get("")]

@@ -1,9 +1,10 @@
-use std::sync::atomic::AtomicI32;
-
-use actix_web::web::Data;
-use async_std::sync::RwLock;
-use chrono::{DateTime, Local};
-use hashbrown::HashMap;
+use {
+    chrono::{DateTime, Local},
+    hashbrown::HashMap,
+    ntex::web::types::Data,
+    std::sync::atomic::AtomicI32,
+    tokio::sync::RwLock,
+};
 
 use peace_objects::beatmaps::CommonBeatmapCaches;
 use peace_performance::Beatmap as PPbeatmap;

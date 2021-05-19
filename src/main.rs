@@ -8,10 +8,10 @@ pub mod routes;
 pub mod settings;
 pub mod utils;
 
-use actix_web::web::Data;
+use ntex::web::types::Data;
 use objects::{glob::Glob, PPserver};
 
-#[actix_web::main]
+#[ntex::main]
 async fn main() {
     // Create local settings
     let cfg = settings::LocalConfig::init();

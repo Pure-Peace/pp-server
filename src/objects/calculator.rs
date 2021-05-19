@@ -1,11 +1,14 @@
 use crate::objects::caches::{Caches, PPbeatmapCache};
 use crate::Glob;
-use actix_web::web::Data;
-use async_std::fs::File;
-use bytes::Bytes;
-use serde::Deserialize;
-use serde_json::{json, Value};
-use std::{cmp::PartialEq, time::Instant};
+
+use {
+    bytes::Bytes,
+    ntex::web::types::Data,
+    serde::Deserialize,
+    serde_json::{json, Value},
+    std::{cmp::PartialEq, time::Instant},
+    tokio::fs::File,
+};
 
 use peace_objects::beatmaps::traits::{BeatmapCacheStorage, MyBeatmapCache};
 use peace_performance::{AnyPP, Beatmap as PPbeatmap, FruitsPP, ManiaPP, OsuPP, PpResult, TaikoPP};
@@ -260,6 +263,7 @@ pub async fn get_beatmap_from_api(
         let expires = glob.local_config.data.beatmap_cache_timeout as i64;
         #[cfg(not(feature = "with_peace"))]
         let osu_api = &glob.osu_api;
+        let a = glob.database.get_ref();
         peace_objects::beatmaps::Beatmap::get(
             request_md5,
             None,
@@ -267,7 +271,7 @@ pub async fn get_beatmap_from_api(
             file_name,
             &osu_api,
             #[cfg(feature = "with_peace")]
-            &glob.database,
+            a,
             true,
             &glob.caches.beatmap_cache,
             expires,
@@ -329,7 +333,7 @@ pub async fn get_beatmap_from_api(
 
 #[inline(always)]
 pub async fn write_osu_file(bytes: Bytes, path: String) -> bool {
-    match async_std::fs::write(path, bytes).await {
+    match tokio::fs::write(path, bytes).await {
         Ok(_) => true,
         Err(err) => {
             warn!(

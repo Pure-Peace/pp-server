@@ -2,6 +2,12 @@
 
 - No changes so far
 
+# v0.4.0
+
+- Framework update
+- Migrate from actix-web to ntex.
+- Using tokio instead of async-std.
+
 # v0.3.0
 
 - Big refactor, improved code reuse, and more.

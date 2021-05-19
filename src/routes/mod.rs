@@ -2,8 +2,7 @@ mod api;
 mod debug;
 mod default;
 
-use actix_web::dev::HttpServiceFactory;
-use actix_web::web::{scope, ServiceConfig};
+use ntex::web::{scope, ServiceConfig};
 
 use crate::settings::model::LocalConfigData;
 
@@ -11,7 +10,7 @@ use crate::settings::model::LocalConfigData;
 /// Initial all routes
 pub fn init(cfg: &mut ServiceConfig, settings: &LocalConfigData) {
     init_default(cfg);
-    cfg.service(init_api());
+    init_api(cfg);
 
     // !warning: only debug!
     if settings.debug == true {
@@ -20,9 +19,9 @@ pub fn init(cfg: &mut ServiceConfig, settings: &LocalConfigData) {
 }
 
 /// Routes for api
-fn init_api() -> impl HttpServiceFactory {
+fn init_api(cfg: &mut ServiceConfig) {
     use api::*;
-    scope("/api").service(index).service(calculate_pp)
+    cfg.service(scope("/api").service(index).service(calculate_pp));
 }
 
 fn init_debug(cfg: &mut ServiceConfig) {

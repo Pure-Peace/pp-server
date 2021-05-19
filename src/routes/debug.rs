@@ -1,6 +1,11 @@
-use actix_web::{dev::Server, get, web::Data, HttpResponse};
-use async_std::channel::Sender;
-use std::time::Instant;
+use {
+    ntex::{
+        server::Server,
+        web::{get, types::Data, HttpResponse},
+    },
+    std::time::Instant,
+    tokio::sync::mpsc::UnboundedSender,
+};
 
 use crate::objects::Caches;
 
@@ -23,9 +28,9 @@ pub async fn index() -> HttpResponse {
 
 /// GET "/server_stop"
 #[get("/server_stop")]
-pub async fn server_stop(sender: Data<Sender<Option<Server>>>) -> HttpResponse {
+pub async fn server_stop(sender: Data<UnboundedSender<Option<Server>>>) -> HttpResponse {
     let start = Instant::now();
-    let _ = sender.send(None).await;
+    let _ = sender.send(None);
     let end = start.elapsed();
     HttpResponse::Ok().body(format!("server_stop done in: {:?}", end))
 }

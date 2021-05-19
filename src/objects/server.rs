@@ -1,30 +1,36 @@
-use crate::Glob;
-use actix_cors::Cors;
-use actix_web::{dev::Server, web::Data, App, HttpServer};
-use async_std::channel::{unbounded, Receiver, Sender};
-use chrono::Local;
-use colored::Colorize;
-use std::time::{Duration, Instant};
+use {
+    chrono::Local,
+    colored::Colorize,
+    ntex::{
+        server::Server,
+        web::{types::Data, App, HttpServer},
+    },
+    prometheus::{opts, IntCounterVec},
+    std::time::{Duration, Instant},
+    tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+};
 
 #[cfg(feature = "with_peace")]
-use crate::objects::calculator::{self, CalcData};
-#[cfg(feature = "with_peace")]
-use actix_web::web::Query;
+use {
+    crate::objects::calculator::{self, CalcData},
+    ntex::web::types::Query,
+};
 
-use actix_web_prom::PrometheusMetrics;
-use prometheus::{opts, IntCounterVec};
+use tokio::sync::Mutex;
 
-use crate::settings::model::LocalConfigData;
-use crate::{routes, utils};
+use crate::{
+    settings::model::LocalConfigData,
+    Glob, {routes, utils},
+};
 
 pub struct PPserver {
     pub addr: String,
     pub glob: Data<Glob>,
-    pub prometheus: PrometheusMetrics,
+    // pub prometheus: PrometheusMetrics,
     pub counter: IntCounterVec,
     pub server: Option<Server>,
-    pub sender: Sender<Option<Server>>,
-    pub receiver: Receiver<Option<Server>>,
+    pub sender: UnboundedSender<Option<Server>>,
+    pub receiver: Data<Mutex<UnboundedReceiver<Option<Server>>>>,
     pub start_time: Option<Instant>,
 }
 
@@ -38,17 +44,17 @@ impl PPserver {
             .unwrap_or("127.0.0.1:8088".to_string());
 
         // Prometheus
-        let (prometheus, counter) = Self::prom_init(&addr, sets);
-        let (sender, receiver) = unbounded();
+        let counter = Self::prom_init(&addr, sets);
+        let (sender, receiver) = unbounded_channel();
 
         Self {
             addr,
             glob,
-            prometheus,
+            // prometheus,
             counter,
             server: None,
             sender,
-            receiver,
+            receiver: Data::new(Mutex::new(receiver)),
             start_time: None,
         }
     }
@@ -61,7 +67,7 @@ impl PPserver {
             let s = self.glob.local_config.data.clone();
             let counter = self.counter.clone();
             let sender = Data::new(self.sender.clone());
-            let prom = self.prometheus.clone();
+            // let prom = self.prometheus.clone();
             HttpServer::new(move || {
                 // App
                 App::new()
@@ -72,14 +78,15 @@ impl PPserver {
                         &s.logger.exclude_endpoints,
                         &s.logger.exclude_endpoints_regex,
                     ))
-                    .wrap(prom.clone())
+                    // TODO: prometheus
+                    /* .wrap(prom.clone())
                     .wrap(
                         Cors::default()
                             .allow_any_origin()
                             .allow_any_header()
                             .allow_any_method()
                             .supports_credentials(),
-                    )
+                    ) */
                     .app_data(sender.clone())
                     .app_data(glob_cloned.clone())
                     .data(counter.clone())
@@ -91,7 +98,7 @@ impl PPserver {
             .unwrap()
             .run()
         };
-        let _ = self.sender.send(Some(server)).await;
+        let _ = self.sender.send(Some(server));
         self.start_time = Some(self.started());
     }
 
@@ -126,9 +133,9 @@ impl PPserver {
     pub async fn start_auto_cache_clean(&self, interval: u64, timeout: u64) {
         let caches = self.glob.caches.clone();
         let duration = Duration::from_secs(interval);
-        async_std::task::spawn(async move {
+        tokio::task::spawn(async move {
             loop {
-                async_std::task::sleep(duration).await;
+                tokio::time::sleep(duration).await;
                 let start = Instant::now();
                 let mut ready_to_clean = Vec::new();
                 let now = Local::now().timestamp();
@@ -394,7 +401,7 @@ impl PPserver {
                         start.elapsed()
                     );
                 }
-                tokio::time::delay_for(duration).await;
+                tokio::time::sleep(duration).await;
             }
         });
     }
@@ -411,12 +418,12 @@ impl PPserver {
 
     /// Server stopped
     pub async fn stopped(&self) -> std::io::Result<()> {
-        let server = self.receiver.recv().await.unwrap().unwrap();
+        let server = self.receiver.lock().await.recv().await.unwrap().unwrap();
         // Waiting for server stopped
         let rx = self.receiver.clone();
         let srv = server.clone();
-        async_std::task::spawn(async move {
-            if let Ok(_) = rx.recv().await {
+        tokio::task::spawn(async move {
+            if let Some(_) = rx.lock().await.recv().await {
                 warn!("Received shutdown signal, stop server...");
                 srv.stop(true).await
             }
@@ -433,7 +440,7 @@ impl PPserver {
         err
     }
 
-    pub fn prom_init(addr: &String, sets: &LocalConfigData) -> (PrometheusMetrics, IntCounterVec) {
+    pub fn prom_init(addr: &String, sets: &LocalConfigData) -> IntCounterVec {
         // Ready prometheus
         println!(
             "> {}",
@@ -462,7 +469,7 @@ impl PPserver {
         let counter = IntCounterVec::new(counter_opts, &["endpoint", "method", "status"]).unwrap();
 
         // Init prometheus
-        let prometheus = PrometheusMetrics::new(
+        /* let prometheus = PrometheusMetrics::new(
             &sets.prom.namespace,
             Some(&sets.prom.endpoint),
             Some(labels),
@@ -470,8 +477,8 @@ impl PPserver {
         prometheus
             .registry
             .register(Box::new(counter.clone()))
-            .unwrap();
+            .unwrap(); */
 
-        (prometheus, counter)
+        counter
     }
 }

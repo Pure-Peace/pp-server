@@ -1,6 +1,6 @@
 [package]
 name = "pp-server"
-version = "0.3.6"
+version = "0.4.0"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"
@@ -22,50 +22,47 @@ with_peace = [
 ]
 
 [dependencies]
-actix-cors = "0.5.4"
-actix-web = "3.1.0"
-actix-web-prom = "0.5.1"
 askama = "0.10.5"
-async-std = "1.9.0"
-bytes = "0.5.6"
+bytes = "1.0"
 chrono = "0.4.19"
 colored = "2.0.0"
-config = "0.10.1"
+config = "0.10"
 derivative = "2.2.0"
 dotenv = "0.15.0"
 env_logger = "0.8.3"
 field_names = "0.1.1"
-hashbrown = "0.9.1"
+hashbrown = "0.11"
 json = "0.12.4"
 log = "0.4.14"
-prometheus = { version = "0.11.0", features = ["process"] }
-reqwest = { version = "0.10.10", features = ["rustls-tls", "json"], default-features = false }
-serde = { version = "1.0.124", features = ["derive"] }
-serde_json = "1.0.64"
+ntex = "0.3"
+prometheus = { version = "0.12", features = ["process"] }
+reqwest = { version = "0.11", features = ["rustls-tls", "json"], default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 serde_str = "0.1.0"
-tokio = { version = "0.2" }
+tokio = { version = "1.6" }
 
 
 # Feature peace
-deadpool-postgres = { version = "0.5.6", optional = true }
-deadpool-redis = { version = "0.6.1", optional = true }
-tokio-postgres = { version = "0.5.5", features = ["with-chrono-0_4", "with-serde_json-1"], optional = true }
+deadpool-postgres = { version = "0.7", optional = true }
+deadpool-redis = { version = "0.7", optional = true }
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"], optional = true }
 
 peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
 
 # Git
-peace-constants = { version = "0.5.0", git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
+peace-constants = {git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
 peace-database = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["with_peace"], optional = true }
-peace-objects = { version = "0.6.5", git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
+peace-objects = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
 peace-settings = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
-peace-utils = { version = "0.5.5", git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["web", "actix_web", "async_file"] }
+peace-utils = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["web", "async_file"] }
 
 # Local (download peace manual)
-# peace-constants = { path = "../Peace/peace-constants" }
-# peace-database = { path = "../Peace/peace-database", features = ["with_peace"], optional = true }
-# peace-objects = { path = "../Peace/peace-objects", features = ["osu_file_downloader"], optional = true }
-# peace-settings = { path = "../Peace/peace-settings" }
-# peace-utils = { path = "../Peace/peace-utils", features = ["web", "actix_web", "async_file"] }
+# peace-constants = { path = "../../Peace/peace-constants" }
+# peace-database = { path = "../../Peace/peace-database", features = ["with_peace"], optional = true }
+# peace-objects = { path = "../../Peace/peace-objects", features = ["osu_file_downloader"], optional = true }
+# peace-settings = { path = "../../Peace/peace-settings" }
+# peace-utils = { path = "../../Peace/peace-utils", features = ["web", "async_file"] }
 
 
 # link-time-optimization

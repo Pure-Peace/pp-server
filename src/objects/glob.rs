@@ -1,7 +1,7 @@
 #[cfg(feature = "with_peace")]
-use async_std::sync::RwLock;
+use tokio::sync::RwLock;
 
-use actix_web::web::Data;
+use ntex::web::types::Data;
 use peace_objects::osu_api::OsuApi;
 
 use super::Caches;

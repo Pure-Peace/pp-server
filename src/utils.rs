@@ -1,5 +1,5 @@
-use actix_web::web::Data;
-use async_std::fs::File as AsyncFile;
+use ntex::web::types::Data;
+use tokio::fs::File as AsyncFile;
 use colored::Colorize;
 use peace_performance::Beatmap as PPbeatmap;
 use std::cmp::min;

@@ -1,5 +1,5 @@
-use actix_web::{get, web::Data, HttpResponse};
 use askama::Template;
+use ntex::web::{get, types::Data, HttpResponse};
 
 use crate::objects::glob::Glob;
 
