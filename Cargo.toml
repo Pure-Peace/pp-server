@@ -1,6 +1,6 @@
 [package]
 name = "pp-server"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"
@@ -34,7 +34,7 @@ askama = "0.10.5"
 bytes = "1.0"
 chrono = "0.4.19"
 colored = "2.0.0"
-config = "0.10"
+config = "0.11"
 derivative = "2.2.0"
 dotenv = "0.15.0"
 env_logger = "0.8.3"
@@ -48,15 +48,15 @@ reqwest = { version = "0.11", features = ["rustls-tls", "json"], default-feature
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_str = "0.1.0"
-tokio = { version = "1.6" }
+tokio = { version = "1.7" }
 
 
 # Feature peace
-deadpool-postgres = { version = "0.7", optional = true }
-deadpool-redis = { version = "0.7", optional = true }
+deadpool-postgres = { version = "0.9", optional = true }
+deadpool-redis = { version = "0.8", optional = true }
 tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"], optional = true }
 
-peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
+peace-performance = { version = "0.2.5", git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
 
 # Git
 peace-constants = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
