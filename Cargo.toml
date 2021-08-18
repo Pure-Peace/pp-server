@@ -1,10 +1,11 @@
 [package]
 name = "pp-server"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["Pure-Peace <940857703@qq.com>"]
 edition = "2018"
 license = "MIT"
 repository = "https://github.com/pure-peace/pp-server"
+default-run = "pp-server-with-peace"
 
 [[bin]]
 name = "pp-server-with-peace"
@@ -44,26 +45,39 @@ json = "0.12.4"
 log = "0.4.14"
 ntex = "0.3"
 prometheus = { version = "0.12", features = ["process"] }
-reqwest = { version = "0.11", features = ["rustls-tls", "json"], default-features = false }
+reqwest = { version = "0.11", features = [
+    "rustls-tls",
+    "json",
+], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_str = "0.1.0"
-tokio = { version = "1.7" }
+tokio = { version = "1.9" }
 
 
 # Feature peace
 deadpool-postgres = { version = "0.9", optional = true }
 deadpool-redis = { version = "0.8", optional = true }
-tokio-postgres = { version = "0.7", features = ["with-chrono-0_4", "with-serde_json-1"], optional = true }
+tokio-postgres = { version = "0.7", features = [
+    "with-chrono-0_4",
+    "with-serde_json-1",
+], optional = true }
 
-peace-performance = { version = "0.2.5", git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
+peace-performance = { version = "0.4.0" }
 
 # Git
 peace-constants = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
-peace-database = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["with_peace"], optional = true }
-peace-objects = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["osu_file_downloader"], optional = true }
+peace-database = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = [
+    "with_peace",
+], optional = true }
+peace-objects = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = [
+    "osu_file_downloader",
+], optional = true }
 peace-settings = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main" }
-peace-utils = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = ["web", "async_file"] }
+peace-utils = { git = "https://github.com/Pure-Peace/Peace.git", branch = "main", features = [
+    "web",
+    "async_file",
+] }
 
 # Local (download peace manual)
 # peace-constants = { path = "../../Peace/peace-constants" }

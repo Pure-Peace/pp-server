@@ -167,13 +167,13 @@ This method is currently cannot use cache.
 Set Cargo.toml
 
 ```rust
-peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main" }
+peace-performance = { ... }
 ```
 
 to
 
 ```rust
-peace-performance = { git = "https://github.com/Pure-Peace/Peace-performance.git", branch = "main", feature = "no_sliders_no_leniency" }
+peace-performance = { ..., feature = "no_sliders_no_leniency" }
 ```
 
 ## Note

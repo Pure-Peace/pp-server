@@ -13,6 +13,21 @@ use {
 use peace_objects::beatmaps::traits::{BeatmapCacheStorage, MyBeatmapCache};
 use peace_performance::{AnyPP, Beatmap as PPbeatmap, FruitsPP, ManiaPP, OsuPP, PpResult, TaikoPP};
 
+macro_rules! set_calculator {
+    ($target:ident.$attr:ident, $calculator:ident) => {
+        match $target.$attr {
+            Some($attr) => $calculator.$attr($attr),
+            None => $calculator,
+        }
+    };
+    ($target:ident.$attr:ident, $func:ident, $calculator:ident) => {
+        match $target.$attr {
+            Some($attr) => $calculator.$func($attr),
+            None => $calculator,
+        }
+    };
+}
+
 #[derive(PartialEq)]
 pub enum GetBeatmapError {
     FileNotFound,
@@ -53,6 +68,7 @@ pub struct CalcData {
     pub passed_obj: Option<usize>,
     pub combo: Option<usize>,
     pub miss: Option<usize>,
+    pub score: Option<u32>,
     pub simple: Option<i32>,
     pub acc_list: Option<i32>,
     pub no_miss: Option<i32>,
@@ -62,38 +78,23 @@ pub struct CalcData {
 pub async fn calculate_pp(beatmap: &PPbeatmap, data: &CalcData) -> PpResult {
     // Get target mode calculator
     let c = mode_calculator(data.mode.unwrap_or(4), &beatmap);
-    let c = match data.mods {
-        Some(mods) => c.mods(mods),
-        None => c,
-    };
-    let c = match data.combo {
-        Some(combo) => c.combo(combo),
-        None => c,
-    };
-    let c = match data.n50 {
-        Some(n50) => c.n50(n50),
-        None => c,
-    };
-    let c = match data.n100 {
-        Some(n100) => c.n100(n100),
-        None => c,
-    };
-    let c = match data.n300 {
-        Some(n300) => c.n300(n300),
-        None => c,
-    };
-    let c = match data.katu {
-        Some(katu) => c.n_katu(katu),
-        None => c,
-    };
-    let c = match data.miss {
-        Some(miss) => c.misses(miss),
-        None => c,
-    };
-    let mut c = match data.passed_obj {
-        Some(passed_obj) => c.passed_objects(passed_obj),
-        None => c,
-    };
+    let c = set_calculator!(data.mods, c);
+    // Irrelevant for osu!mania
+    let c = set_calculator!(data.combo, c);
+    // Irrelevant for osu!mania and osu!taiko
+    let c = set_calculator!(data.n50, c);
+    // Irrelevant for osu!mania
+    let c = set_calculator!(data.n100, c);
+    // Irrelevant for osu!mania
+    let c = set_calculator!(data.n300, c);
+    // Only relevant for osu!ctb
+    let c = set_calculator!(data.katu, n_katu, c);
+    // Irrelevant for osu!mania
+    let c = set_calculator!(data.miss, misses, c);
+    let c = set_calculator!(data.passed_obj, passed_objects, c);
+    // Only relevant for osu!mania
+    let mut c = set_calculator!(data.score, c);
+    // Irrelevant for osu!mania
     if let Some(acc) = data.acc {
         c.set_accuracy(acc)
     };
